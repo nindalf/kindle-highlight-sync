@@ -1,10 +1,220 @@
-{% extends "base.html" %}
-
-{% block title %}Search Highlights{% endblock %}
-
-{% block content %}
-<div class="empty-state">
-    <h2>Search coming soon</h2>
-    <p>Full-text search across all highlights will be available in a future update</p>
+{% extends "base.html" %} {% block title %}{% if query %}Search: {{ query }}{%
+else %}Search Highlights{% endif %}{% endblock %} {% block content %}
+<div class="search-header">
+    <h2>Search Highlights</h2>
+    <form method="get" action="/search" class="search-form">
+        <input
+            type="text"
+            name="q"
+            value="{{ query }}"
+            placeholder="Search highlights and notes..."
+            class="search-input"
+            autofocus
+        />
+        <button type="submit" class="search-button">Search</button>
+    </form>
 </div>
+
+{% if query %} {% if results %}
+<div class="search-stats">
+    <p>
+        Found <strong>{{ total_results }}</strong> highlight(s) matching "{{
+        query }}"
+    </p>
+</div>
+
+{% for item in results %}
+<div class="book-section">
+    <div class="book-section-header">
+        <h3><a href="/book/{{ item.book.asin }}">{{ item.book.title }}</a></h3>
+        <span class="book-author">by {{ item.book.author }}</span>
+        <span class="result-count">{{ item.highlights|length }} result(s)</span>
+    </div>
+
+    {% for highlight in item.highlights %}
+    <div class="highlight {{ color_class(highlight.color) }}">
+        <div class="highlight-text">{{ highlight.text }}</div>
+
+        {% if highlight.note %}
+        <div class="highlight-note">Note: {{ highlight.note }}</div>
+        {% endif %}
+
+        <div class="highlight-meta">
+            <span>
+                {% if highlight.page %} Page {{ highlight.page }} {% endif %} {%
+                if highlight.location %} · Location {{ highlight.location }} {%
+                endif %}
+            </span>
+            <span>
+                <a href="/book/{{ item.book.asin }}" class="view-book-link"
+                    >View book →</a
+                >
+            </span>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endfor %} {% else %}
+<div class="empty-state">
+    <h2>No results found</h2>
+    <p>No highlights or notes match "{{ query }}"</p>
+    <p class="search-tip">Try different keywords or check your spelling</p>
+</div>
+{% endif %} {% else %}
+<div class="empty-state">
+    <h2>Search your highlights</h2>
+    <p>Enter keywords to search across all your Kindle highlights and notes</p>
+    <ul class="search-tips">
+        <li>Search is case-insensitive</li>
+        <li>Searches both highlight text and notes</li>
+        <li>Results are grouped by book</li>
+    </ul>
+</div>
+{% endif %}
+
+<style>
+    .search-header {
+        margin-bottom: 30px;
+    }
+
+    .search-header h2 {
+        font-size: 28px;
+        margin-bottom: 20px;
+        color: #232f3e;
+    }
+
+    .search-form {
+        display: flex;
+        gap: 10px;
+        max-width: 600px;
+    }
+
+    .search-input {
+        flex: 1;
+        padding: 12px 16px;
+        font-size: 16px;
+        border: 2px solid #e0e0e0;
+        border-radius: 6px;
+        font-family: inherit;
+    }
+
+    .search-input:focus {
+        outline: none;
+        border-color: #0066c0;
+    }
+
+    .search-button {
+        padding: 12px 24px;
+        background: #0066c0;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        font-family: inherit;
+    }
+
+    .search-button:hover {
+        background: #0052a3;
+    }
+
+    .search-stats {
+        background: #f0f8ff;
+        padding: 12px 16px;
+        border-radius: 6px;
+        margin-bottom: 24px;
+    }
+
+    .search-stats p {
+        margin: 0;
+        color: #555;
+        font-size: 14px;
+    }
+
+    .book-section {
+        background: #fff;
+        border-radius: 8px;
+        padding: 24px;
+        margin-bottom: 24px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .book-section-header {
+        margin-bottom: 20px;
+        padding-bottom: 16px;
+        border-bottom: 2px solid #e0e0e0;
+    }
+
+    .book-section-header h3 {
+        font-size: 22px;
+        margin: 0 0 8px 0;
+    }
+
+    .book-section-header h3 a {
+        color: #232f3e;
+        text-decoration: none;
+    }
+
+    .book-section-header h3 a:hover {
+        color: #0066c0;
+    }
+
+    .book-section-header .book-author {
+        color: #666;
+        font-size: 16px;
+        margin-right: 16px;
+    }
+
+    .book-section-header .result-count {
+        color: #999;
+        font-size: 14px;
+    }
+
+    .book-section .highlight {
+        margin-bottom: 16px;
+    }
+
+    .book-section .highlight:last-child {
+        margin-bottom: 0;
+    }
+
+    .view-book-link {
+        color: #0066c0;
+        text-decoration: none;
+        font-size: 12px;
+    }
+
+    .view-book-link:hover {
+        text-decoration: underline;
+    }
+
+    .search-tips {
+        list-style: none;
+        padding: 0;
+        margin: 20px 0 0 0;
+        text-align: left;
+        max-width: 400px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    .search-tips li {
+        padding: 8px 0;
+        color: #666;
+    }
+
+    .search-tips li:before {
+        content: "✓ ";
+        color: #0066c0;
+        font-weight: bold;
+        margin-right: 8px;
+    }
+
+    .search-tip {
+        color: #999;
+        font-size: 14px;
+        margin-top: 8px;
+    }
+</style>
 {% endblock %}

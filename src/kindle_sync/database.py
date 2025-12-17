@@ -481,3 +481,83 @@ class DatabaseManager:
             self.conn.commit()
         except sqlite3.Error as e:
             raise DatabaseError(f"Failed to delete highlights: {e}") from e
+
+    def search_highlights(
+        self, query: str, book_asin: str | None = None
+    ) -> list[tuple[Highlight, Book]]:
+        """
+        Search highlights by text content.
+
+        Args:
+            query: Search query string
+            book_asin: Optional book ASIN to filter results
+
+        Returns:
+            List of tuples (Highlight, Book) matching the query
+        """
+        if not query:
+            return []
+
+        self.connect()
+        assert self.conn is not None
+
+        # Use LIKE for case-insensitive search
+        search_pattern = f"%{query}%"
+
+        if book_asin:
+            sql = """
+                SELECT
+                    h.id, h.book_asin, h.text, h.location, h.page, h.note,
+                    h.color, h.created_date, h.created_at,
+                    b.asin, b.title, b.author, b.url, b.image_url,
+                    b.last_annotated_date, b.created_at, b.updated_at
+                FROM highlights h
+                JOIN books b ON h.book_asin = b.asin
+                WHERE (h.text LIKE ? OR h.note LIKE ?) AND h.book_asin = ?
+                ORDER BY b.title, h.page, h.location
+            """
+            cursor = self.conn.execute(sql, (search_pattern, search_pattern, book_asin))
+        else:
+            sql = """
+                SELECT
+                    h.id, h.book_asin, h.text, h.location, h.page, h.note,
+                    h.color, h.created_date, h.created_at,
+                    b.asin, b.title, b.author, b.url, b.image_url,
+                    b.last_annotated_date, b.created_at, b.updated_at
+                FROM highlights h
+                JOIN books b ON h.book_asin = b.asin
+                WHERE h.text LIKE ? OR h.note LIKE ?
+                ORDER BY b.title, h.page, h.location
+            """
+            cursor = self.conn.execute(sql, (search_pattern, search_pattern))
+
+        results = []
+        for row in cursor.fetchall():
+            # Parse highlight
+            highlight = Highlight(
+                id=row[0],
+                book_asin=row[1],
+                text=row[2],
+                location=row[3],
+                page=row[4],
+                note=row[5],
+                color=HighlightColor(row[6]) if row[6] else None,
+                created_date=datetime.fromisoformat(row[7]) if row[7] else None,
+                created_at=datetime.fromisoformat(row[8]) if row[8] else None,
+            )
+
+            # Parse book
+            book = Book(
+                asin=row[9],
+                title=row[10],
+                author=row[11],
+                url=row[12],
+                image_url=row[13],
+                last_annotated_date=datetime.fromisoformat(row[14]) if row[14] else None,
+                created_at=datetime.fromisoformat(row[15]) if row[15] else None,
+                updated_at=datetime.fromisoformat(row[16]) if row[16] else None,
+            )
+
+            results.append((highlight, book))
+
+        return results

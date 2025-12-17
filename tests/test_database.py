@@ -375,3 +375,131 @@ class TestSyncMetadata:
         assert result is not None
         # Compare with some tolerance for datetime precision
         assert abs((result - now).total_seconds()) < 1
+
+
+class TestSearchHighlights:
+    """Tests for search functionality."""
+
+    def test_search_empty_query(self, temp_db):
+        """Test search with empty query."""
+        results = temp_db.search_highlights("")
+        assert results == []
+
+    def test_search_in_text(self, temp_db, sample_book):
+        """Test search matches highlight text."""
+        temp_db.insert_book(sample_book)
+
+        h1 = Highlight(
+            id="h1",
+            book_asin=sample_book.asin,
+            text="The quick brown fox",
+            created_at=datetime.now()
+        )
+        h2 = Highlight(
+            id="h2",
+            book_asin=sample_book.asin,
+            text="The lazy dog",
+            created_at=datetime.now()
+        )
+        temp_db.insert_highlight(h1)
+        temp_db.insert_highlight(h2)
+
+        results = temp_db.search_highlights("fox")
+        assert len(results) == 1
+        assert results[0][0].text == "The quick brown fox"
+        assert results[0][1].asin == sample_book.asin
+
+    def test_search_in_notes(self, temp_db, sample_book):
+        """Test search matches notes."""
+        temp_db.insert_book(sample_book)
+
+        h1 = Highlight(
+            id="h1",
+            book_asin=sample_book.asin,
+            text="Some text",
+            note="Important concept",
+            created_at=datetime.now()
+        )
+        temp_db.insert_highlight(h1)
+
+        results = temp_db.search_highlights("concept")
+        assert len(results) == 1
+        assert results[0][0].note == "Important concept"
+
+    def test_search_case_insensitive(self, temp_db, sample_book):
+        """Test search is case insensitive."""
+        temp_db.insert_book(sample_book)
+
+        h1 = Highlight(
+            id="h1",
+            book_asin=sample_book.asin,
+            text="The Quick Brown Fox",
+            created_at=datetime.now()
+        )
+        temp_db.insert_highlight(h1)
+
+        results_lower = temp_db.search_highlights("fox")
+        results_upper = temp_db.search_highlights("FOX")
+        results_mixed = temp_db.search_highlights("Fox")
+
+        assert len(results_lower) == 1
+        assert len(results_upper) == 1
+        assert len(results_mixed) == 1
+
+    def test_search_with_book_filter(self, temp_db):
+        """Test search filtered by book."""
+        book1 = Book(
+            asin="BOOK1",
+            title="Book One",
+            author="Author One",
+            created_at=datetime.now(),
+            updated_at=datetime.now()
+        )
+        book2 = Book(
+            asin="BOOK2",
+            title="Book Two",
+            author="Author Two",
+            created_at=datetime.now(),
+            updated_at=datetime.now()
+        )
+        temp_db.insert_book(book1)
+        temp_db.insert_book(book2)
+
+        h1 = Highlight(
+            id="h1",
+            book_asin="BOOK1",
+            text="Searchable text",
+            created_at=datetime.now()
+        )
+        h2 = Highlight(
+            id="h2",
+            book_asin="BOOK2",
+            text="Searchable text",
+            created_at=datetime.now()
+        )
+        temp_db.insert_highlight(h1)
+        temp_db.insert_highlight(h2)
+
+        # Search all books
+        results_all = temp_db.search_highlights("searchable")
+        assert len(results_all) == 2
+
+        # Search only book1
+        results_book1 = temp_db.search_highlights("searchable", book_asin="BOOK1")
+        assert len(results_book1) == 1
+        assert results_book1[0][1].asin == "BOOK1"
+
+    def test_search_no_results(self, temp_db, sample_book):
+        """Test search with no matching results."""
+        temp_db.insert_book(sample_book)
+
+        h1 = Highlight(
+            id="h1",
+            book_asin=sample_book.asin,
+            text="Some text",
+            created_at=datetime.now()
+        )
+        temp_db.insert_highlight(h1)
+
+        results = temp_db.search_highlights("nonexistent")
+        assert results == []

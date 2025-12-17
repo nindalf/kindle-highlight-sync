@@ -3,7 +3,7 @@
 from datetime import datetime
 from pathlib import Path
 
-from flask import Flask, render_template, abort, g
+from flask import Flask, render_template, abort, g, request
 
 from kindle_sync.database import DatabaseManager
 from kindle_sync.models import HighlightColor
@@ -136,9 +136,39 @@ def create_app(db_path: str | None = None) -> Flask:
 
     @app.route("/search")
     def search():
-        """Search highlights (future feature)."""
-        # TODO: Implement search functionality
-        return render_template("search.html")
+        """Search highlights across all books."""
+        query = request.args.get("q", "").strip()
+        book_filter = request.args.get("book", "").strip()
+
+        if not query:
+            # Show empty search page
+            return render_template("search.html", query="", results=None)
+
+        db = get_db()
+
+        # Search with optional book filter
+        results = db.search_highlights(
+            query,
+            book_asin=book_filter if book_filter else None
+        )
+
+        # Group results by book for better display
+        books_results = {}
+        for highlight, book in results:
+            if book.asin not in books_results:
+                books_results[book.asin] = {
+                    "book": book,
+                    "highlights": []
+                }
+            books_results[book.asin]["highlights"].append(highlight)
+
+        return render_template(
+            "search.html",
+            query=query,
+            results=list(books_results.values()),
+            total_results=len(results),
+            book_filter=book_filter
+        )
 
     return app
 

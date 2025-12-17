@@ -106,11 +106,58 @@ class TestWebInterface:
         assert b"Pink highlight" in response.data
         assert b"Orange highlight" in response.data
 
-    def test_search_page(self, client):
-        """Test search page (placeholder)."""
+    def test_search_page_empty(self, client):
+        """Test search page without query."""
         response = client.get("/search")
         assert response.status_code == 200
-        assert b"coming soon" in response.data
+        assert b"Search your highlights" in response.data
+        assert b"Enter keywords" in response.data
+
+    def test_search_with_results(self, client, temp_db, sample_book, sample_highlight):
+        """Test search with matching results."""
+        temp_db.insert_book(sample_book)
+        temp_db.insert_highlight(sample_highlight)
+
+        response = client.get("/search?q=goals")
+        assert response.status_code == 200
+        assert b"Found" in response.data
+        assert b"1" in response.data  # 1 result
+        assert sample_book.title.encode() in response.data
+        assert b"goals" in response.data.lower()
+
+    def test_search_no_results(self, client, temp_db, sample_book, sample_highlight):
+        """Test search with no matching results."""
+        temp_db.insert_book(sample_book)
+        temp_db.insert_highlight(sample_highlight)
+
+        response = client.get("/search?q=nonexistent")
+        assert response.status_code == 200
+        assert b"No results found" in response.data
+        assert b"nonexistent" in response.data
+
+    def test_search_in_notes(self, client, temp_db, sample_book, sample_highlight):
+        """Test search matches notes."""
+        sample_highlight.note = "Important concept"
+        temp_db.insert_book(sample_book)
+        temp_db.insert_highlight(sample_highlight)
+
+        response = client.get("/search?q=concept")
+        assert response.status_code == 200
+        assert b"Found" in response.data
+        assert b"Important concept" in response.data
+
+    def test_search_case_insensitive(self, client, temp_db, sample_book, sample_highlight):
+        """Test search is case insensitive."""
+        temp_db.insert_book(sample_book)
+        temp_db.insert_highlight(sample_highlight)
+
+        response = client.get("/search?q=GOALS")
+        assert response.status_code == 200
+        assert b"Found" in response.data
+
+        response = client.get("/search?q=goals")
+        assert response.status_code == 200
+        assert b"Found" in response.data
 
     def test_template_formatting(self, client, temp_db, sample_book):
         """Test date formatting in templates."""
