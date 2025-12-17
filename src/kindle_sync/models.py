@@ -1,0 +1,83 @@
+"""Data models for Kindle Highlights Sync."""
+
+from dataclasses import dataclass
+from datetime import datetime
+from enum import Enum
+
+
+class HighlightColor(Enum):
+    """Kindle highlight colors."""
+
+    YELLOW = "yellow"
+    BLUE = "blue"
+    PINK = "pink"
+    ORANGE = "orange"
+
+
+class AmazonRegion(Enum):
+    """Supported Amazon regions."""
+
+    GLOBAL = "global"
+    UK = "uk"
+    GERMANY = "germany"
+    JAPAN = "japan"
+    INDIA = "india"
+    SPAIN = "spain"
+    ITALY = "italy"
+    FRANCE = "france"
+
+
+class ExportFormat(Enum):
+    """Supported export formats."""
+
+    MARKDOWN = "markdown"
+    JSON = "json"
+    CSV = "csv"
+
+
+@dataclass
+class Book:
+    """Represents a Kindle book."""
+
+    id: str
+    title: str
+    author: str
+    asin: str | None = None
+    url: str | None = None
+    image_url: str | None = None
+    last_annotated_date: datetime | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+
+
+@dataclass
+class Highlight:
+    """Represents a Kindle highlight."""
+
+    id: str
+    book_id: str
+    text: str
+    location: str | None = None
+    page: str | None = None
+    note: str | None = None
+    color: HighlightColor | None = None
+    created_date: datetime | None = None
+    created_at: datetime | None = None
+
+
+@dataclass
+class BookHighlights:
+    """Combines a book with its highlights."""
+
+    book: Book
+    highlights: list[Highlight]
+
+
+@dataclass
+class RegionConfig:
+    """Configuration for an Amazon region."""
+
+    name: str
+    hostname: str
+    kindle_reader_url: str
+    notebook_url: str
