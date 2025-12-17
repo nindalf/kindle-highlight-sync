@@ -1,149 +1,131 @@
 # Kindle Highlights Sync
 
-A Python tool to sync your Kindle highlights from Amazon to a local SQLite database and export them to various formats.
+Sync your Kindle highlights from Amazon to a local SQLite database. Export to Markdown, JSON, or CSV. Browse via CLI or web interface.
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
 
 ## Features
 
-- **One-time authentication**: Log in once, reuse session for future syncs
-- **Automatic sync**: Download all your Kindle books and highlights
-- **Local storage**: SQLite database for offline access
-- **Multiple export formats**: Markdown, JSON, CSV
-- **Customizable templates**: Jinja2-based Markdown templates
-- **Multi-region support**: Works with Amazon.com, .co.uk, .de, .jp, and more
-- **CLI interface**: Simple command-line interface
+- 🔐 **One-time authentication** - Browser-based login, session persistence
+- 📦 **Local SQLite storage** - All data stored locally, offline access
+- 📄 **Multiple export formats** - Markdown, JSON, CSV with Jinja2 templates
+- 🌍 **Multi-region support** - US, UK, Germany, Japan, India, Spain, Italy, France
+- 💻 **CLI interface** - 8 commands for all operations
+- 🌐 **Web interface** - Browse and search highlights in your browser
+- 🔍 **Full-text search** - Search across all highlights and notes
+- 🎨 **Highlight colors** - Preserves yellow, blue, pink, orange colors
+- 🔄 **Smart sync** - Incremental updates, note editing, deletion tracking
 
 ## Installation
 
-### Prerequisites
-
-- Python 3.10 or higher
-- Chrome or Firefox browser (for authentication)
-
-### Using uv (Recommended)
+**Prerequisites:** Python 3.10+, Chrome/Firefox
 
 ```bash
-# Clone the repository
 git clone <repo-url>
 cd kindle-highlights-sync
-
-# Install dependencies (creates .venv automatically)
 uv sync
-
-# Verify installation
-uv run kindle-sync --version
 ```
-
 
 ## Quick Start
 
-### 1. Authenticate with Amazon
-
 ```bash
+# Login to Amazon
 uv run kindle-sync login
-```
 
-This opens a browser window where you log in to your Amazon account. Once authenticated, your session is saved locally.
-
-### 2. Sync Your Highlights
-
-```bash
+# Sync all highlights
 uv run kindle-sync sync
+
+# Export to Markdown
+uv run kindle-sync export ./highlights
+
+# Start web interface
+uv run kindle-sync web
 ```
 
-This downloads all your books and highlights to a local SQLite database.
-
-### 3. Export Your Highlights
-
-```bash
-uv run kindle-sync export ./my-highlights
-```
-
-This exports all your highlights to Markdown files in the `./my-highlights` directory.
-
-## Usage
+## CLI Commands
 
 ### Authentication
 
 ```bash
-# Login with default region (amazon.com)
-uv run kindle-sync login
-
-# Login with specific region
-uv run kindle-sync login --region uk
-
-# Run browser in headless mode (no window)
-uv run kindle-sync login --headless
+kindle-sync login [--region uk] [--headless]
+kindle-sync logout
+kindle-sync status
 ```
+
+Supported regions: `global` (US), `uk`, `germany`, `japan`, `india`, `spain`, `italy`, `france`
 
 ### Syncing
 
 ```bash
-# Incremental sync (default) - only new highlights
-uv run kindle-sync sync
+# Incremental sync (default)
+kindle-sync sync
 
-# Full sync - all books and highlights
-uv run kindle-sync sync --full
+# Full sync (re-download everything)
+kindle-sync sync --full
 
-# Sync specific books only
-uv run kindle-sync sync --books abc123,def456
+# Sync specific books
+kindle-sync sync --books "ASIN1,ASIN2"
 ```
 
-### Exporting
+The sync command:
+- Downloads new highlights
+- Updates modified notes
+- Removes deleted highlights
+- Tracks last sync time
+
+### Export
 
 ```bash
 # Export all books to Markdown (default)
-uv run kindle-sync export ./output
+kindle-sync export ./output
 
-# Export to JSON
-uv run kindle-sync export ./output --format json
-
-# Export to CSV
-uv run kindle-sync export ./output --format csv
+# Export to JSON or CSV
+kindle-sync export ./output --format json
+kindle-sync export ./output --format csv
 
 # Use custom template
-uv run kindle-sync export ./output --template detailed
+kindle-sync export ./output --template detailed
 
-# Export specific books only
-uv run kindle-sync export ./output --books abc123,def456
+# Export specific books
+kindle-sync export ./output --books "ASIN1,ASIN2"
 ```
 
-### Listing Books
+**Built-in templates:**
+- `default` - Comprehensive with all metadata
+- `simple` - Minimal, just highlights
+- `detailed` - Full export with notes and colors
+
+### Browsing
 
 ```bash
-# List all books in database
-uv run kindle-sync list
+# List all books
+kindle-sync list [--sort author|date] [--format table|json]
 
-# Output as JSON
-uv run kindle-sync list --format json
-
-# Sort by author
-uv run kindle-sync list --sort author
+# Show book details
+kindle-sync show <ASIN>
 ```
 
-### Show Book Details
+### Web Interface
 
 ```bash
-# Show details for a specific book
-uv run kindle-sync show abc123
+# Start server (default: localhost:5000)
+kindle-sync web
+
+# Custom host/port
+kindle-sync web --host 0.0.0.0 --port 8080
+
+# Debug mode
+kindle-sync web --debug
 ```
 
-### Check Status
-
-```bash
-# Show sync status and statistics
-uv run kindle-sync status
-```
-
-### Logout
-
-```bash
-# Clear stored session
-uv run kindle-sync logout
-```
+**Web features:**
+- Grid view of all books
+- Individual book pages with all highlights
+- Full-text search across highlights and notes
+- Color-coded highlights
+- Responsive design
+- Thread-safe SQLite connections
 
 ## Configuration
 
@@ -153,60 +135,73 @@ Default: `~/.kindle-sync/highlights.db`
 
 Override with `--db` flag:
 ```bash
-uv run kindle-sync --db /path/to/custom.db sync
+kindle-sync --db /path/to/custom.db sync
 ```
 
-### Supported Regions
+### Custom Templates
 
-| Region          | Code      | Amazon Site         |
-|-----------------|-----------|---------------------|
-| Global (US)     | `global`  | amazon.com          |
-| United Kingdom  | `uk`      | amazon.co.uk        |
-| Germany         | `germany` | amazon.de           |
-| Japan           | `japan`   | amazon.co.jp        |
-| India           | `india`   | amazon.in           |
-| Spain           | `spain`   | amazon.es           |
-| Italy           | `italy`   | amazon.it           |
-| France          | `france`  | amazon.fr           |
+Place templates in `~/.kindle-sync/templates/`:
+```jinja2
+# mytemplate.md.j2
+# {{ book.title }} by {{ book.author }}
 
-### Export Templates
-
-Built-in Markdown templates:
-
-- **default**: Comprehensive export with all metadata
-- **simple**: Minimal export with just highlights
-- **detailed**: Full export with notes and colors
-
-Custom templates can be placed in `~/.kindle-sync/templates/`.
-
-## Example Workflow
-
-```bash
-# Initial setup
-uv run kindle-sync login --region uk
-uv run kindle-sync sync --full
-
-# Daily workflow
-uv run kindle-sync sync
-uv run kindle-sync export ~/Documents/highlights
-
-# Export specific book to JSON
-uv run kindle-sync list  # Find book ID
-uv run kindle-sync export ./output --books abc123 --format json
+{% for highlight in highlights %}
+> {{ highlight.text }}
+{% if highlight.note %}**Note:** {{ highlight.note }}{% endif %}
+{% endfor %}
 ```
 
-## Output Examples
+Use with `--template mytemplate`
 
-### Markdown Export
+## How It Works
+
+### Authentication
+
+1. Opens browser to Amazon login page
+2. You log in through Amazon's interface
+3. Extracts and stores session cookies
+4. Reuses cookies for future requests (session expires ~7 days)
+
+### Scraping
+
+1. Loads `read.amazon.com/notebook` with stored cookies
+2. Parses HTML for books (title, author, ASIN)
+3. Iterates through book pages with pagination
+4. Extracts highlights (text, location, page, note, color)
+5. Generates unique IDs using Fletcher-16 hash
+
+### Storage
+
+- **Books table**: ASIN (primary key), title, author, metadata
+- **Highlights table**: Fletcher-16 ID, book_asin (foreign key), text, location, page, note, color
+- **Session table**: Encrypted cookies, region, expiry
+- **Sync metadata**: Last sync timestamp
+
+### Sync Algorithm
+
+```python
+for book in scraped_books:
+    existing_highlights = get_from_db(book.asin)
+    new_highlights = scrape_from_amazon(book.asin)
+    
+    # Insert/update highlights (UPSERT)
+    for highlight in new_highlights:
+        db.insert_highlight(highlight)  # ON CONFLICT DO UPDATE
+    
+    # Delete removed highlights
+    deleted = existing_highlights - new_highlights
+    db.delete_highlights(deleted)
+```
+
+## Export Examples
+
+### Markdown
 
 ```markdown
 # Atomic Habits
 
 **Author:** James Clear  
-**ASIN:** B01N5AX61W  
-**Last Annotated:** 2023-10-15
-
----
+**ASIN:** B01N5AX61W
 
 ## Highlights
 
@@ -214,24 +209,18 @@ uv run kindle-sync export ./output --books abc123 --format json
 
 > You do not rise to the level of your goals. You fall to the level of your systems.
 
-**Note:** Important concept about systems vs goals
-
+**Note:** Important concept about systems vs goals  
 *Color: yellow*
-
----
-
-**Total Highlights:** 42
 ```
 
-### JSON Export
+### JSON
 
 ```json
 {
   "book": {
-    "id": "3a7f",
+    "asin": "B01N5AX61W",
     "title": "Atomic Habits",
-    "author": "James Clear",
-    "asin": "B01N5AX61W"
+    "author": "James Clear"
   },
   "highlights": [
     {
@@ -239,61 +228,26 @@ uv run kindle-sync export ./output --books abc123 --format json
       "text": "You do not rise to the level of your goals...",
       "location": "254-267",
       "page": "12",
-      "color": "yellow"
+      "color": "yellow",
+      "note": "Important concept"
     }
   ]
 }
 ```
 
-## Project Structure
-
-```
-kindle-highlights-sync/
-├── src/
-│   └── kindle_sync/
-│       ├── __init__.py         # Package initialization
-│       ├── cli.py              # CLI commands
-│       ├── auth.py             # Authentication
-│       ├── scraper.py          # Web scraping
-│       ├── database.py         # Database operations
-│       ├── exporter.py         # Export functionality
-│       ├── models.py           # Data models
-│       ├── config.py           # Configuration
-│       ├── utils.py            # Utilities
-│       └── templates/          # Export templates
-├── tests/                      # Test suite
-├── docs/                       # Documentation
-│   ├── SPECIFICATION.md        # Technical specification
-│   ├── DATABASE.md             # Database schema
-│   └── API.md                  # API documentation
-├── pyproject.toml              # Project configuration
-└── README.md                   # This file
-```
-
 ## Development
-
-### Setup Development Environment
-
-```bash
-# Clone repository
-git clone <repo-url>
-cd kindle-highlights-sync
-
-# Install with dev dependencies
-uv sync
-```
 
 ### Running Tests
 
 ```bash
-# Run all tests
+# All tests (115 tests, 62% coverage)
 uv run pytest
 
-# Run with coverage
-uv run pytest --cov=kindle_sync --cov-report=html
-
-# Run specific test
+# Specific test file
 uv run pytest tests/test_database.py
+
+# With coverage report
+uv run pytest --cov=kindle_sync --cov-report=html
 ```
 
 ### Code Quality
@@ -302,160 +256,176 @@ uv run pytest tests/test_database.py
 # Format code
 uv run ruff format .
 
-# Lint code
+# Lint
 uv run ruff check .
 
-# Auto-fix issues
+# Auto-fix
 uv run ruff check --fix .
 
 # Type checking
 uv run mypy src/kindle_sync
 ```
 
-### Pre-commit Checklist
+## Architecture
 
-Before committing:
+### Project Structure
 
-```bash
-uv run ruff format .
-uv run ruff check --fix .
-uv run mypy src/kindle_sync
-uv run pytest
+```
+kindle-highlights-sync/
+├── src/kindle_sync/
+│   ├── cli.py              # CLI commands (8 commands)
+│   ├── auth.py             # Authentication & cookies
+│   ├── scraper.py          # HTML parsing & pagination
+│   ├── database.py         # SQLite operations & search
+│   ├── exporter.py         # Markdown/JSON/CSV export
+│   ├── web.py              # Flask web interface
+│   ├── models.py           # Data models (Book, Highlight)
+│   ├── config.py           # Region configs
+│   ├── utils.py            # Fletcher-16 hash, retry logic
+│   └── templates/
+│       ├── default.md.j2   # Export templates
+│       ├── simple.md.j2
+│       ├── detailed.md.j2
+│       └── web/            # Web UI templates
+│           ├── base.html
+│           ├── index.html
+│           ├── book.html
+│           └── search.html
+├── tests/                  # 115 unit tests
+└── pyproject.toml          # Project config
 ```
 
-## Documentation
+### Tech Stack
 
-- [Getting Started](docs/Getting-Started.md) - Installation and usage guide
-- [Technical Specification](docs/Specification.md) - Complete technical reference
+- **CLI:** Click + Rich
+- **Web:** Flask 3.0+
+- **Database:** SQLite3
+- **Scraping:** Selenium + BeautifulSoup4
+- **Templates:** Jinja2
+- **HTTP:** Requests
+- **Testing:** pytest
 
-## How It Works
+### Database Schema
 
-### Authentication
+```sql
+CREATE TABLE books (
+    asin TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    author TEXT NOT NULL,
+    url TEXT,
+    image_url TEXT,
+    last_annotated_date TEXT,
+    created_at TEXT,
+    updated_at TEXT
+);
 
-1. Opens a browser window with Amazon login page
-2. User logs in through Amazon's standard interface
-3. After successful login, extracts session cookies
-4. Stores cookies in local SQLite database
-5. Reuses cookies for future requests
+CREATE TABLE highlights (
+    id TEXT PRIMARY KEY,              -- Fletcher-16 hash
+    book_asin TEXT NOT NULL,
+    text TEXT NOT NULL,
+    location TEXT,
+    page TEXT,
+    note TEXT,
+    color TEXT,
+    created_date TEXT,
+    created_at TEXT,
+    FOREIGN KEY (book_asin) REFERENCES books(asin) ON DELETE CASCADE
+);
 
-### Scraping
+CREATE TABLE session (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL,
+    updated_at TEXT
+);
 
-1. Loads `https://read.amazon.com/notebook` with stored cookies
-2. Parses HTML to extract books (title, author, ASIN, etc.)
-3. For each book, loads highlights page with pagination
-4. Extracts highlights (text, location, page, note, color)
-5. Generates unique IDs using Fletcher-16 hash
-
-### Storage
-
-- SQLite database with three main tables: `books`, `highlights`, `session`
-- Book ID: Hash of lowercase title
-- Highlight ID: Hash of lowercase text
-- Foreign key relationship: highlights → books (cascade delete)
-
-### Export
-
-- Jinja2 templates for Markdown rendering
-- JSON export with structured data
-- CSV export for spreadsheet import
-- Configurable output format and location
+CREATE TABLE sync_metadata (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL,
+    updated_at TEXT
+);
+```
 
 ## Troubleshooting
 
-### "Login failed"
+### Login Issues
 
-- Ensure you're using the correct region
-- Try non-headless mode: `uv run kindle-sync login --no-headless`
-- Check if two-factor authentication is enabled (may require manual intervention)
+- Ensure correct region: `kindle-sync login --region uk`
+- Try non-headless: `kindle-sync login --no-headless`
+- Check 2FA settings (may require manual intervention)
 
-### "Session expired"
+### Session Expired
 
-- Run `uv run kindle-sync logout` and then `uv run kindle-sync login` again
-- Amazon sessions typically expire after a week
+```bash
+kindle-sync logout
+kindle-sync login
+```
 
-### "No books found"
+### No Books Found
 
-- Ensure you have highlights in your Amazon Kindle account
-- Check that you're using the correct region
-- Try `uv run kindle-sync sync --full` for a complete refresh
+- Verify highlights exist on read.amazon.com
+- Check region matches your account
+- Try `kindle-sync sync --full`
 
-### "Database locked"
+### Database Locked
 
-- Ensure no other instances are running
-- Check file permissions on database file
-- Try closing any database browser tools
+- Close other instances
+- Check file permissions: `chmod 600 ~/.kindle-sync/highlights.db`
+
+### Web Interface Threading Error
+
+Fixed in current version. Uses per-request database connections via Flask's `g` object.
+
+### Search Not Finding Results
+
+- Search is case-insensitive
+- Searches both highlight text and notes
+- Uses SQL LIKE pattern matching
+- For large collections (>10k highlights), consider SQLite FTS5
 
 ## Limitations
 
-- Requires manual login (no credential storage for security)
-- Session expires after ~7 days (requires re-login)
-- Depends on Amazon's HTML structure (may break if Amazon changes their site)
-- Cannot sync highlights from books purchased on other platforms
-- No support for "My Clippings.txt" import (planned for future)
+- **Manual login required** - No credential storage for security
+- **Session expiry** - ~7 days, requires re-login
+- **HTML parsing dependency** - May break if Amazon changes site structure
+- **Single platform** - Only syncs from Amazon (no Kobo, Apple Books, etc.)
+- **No My Clippings.txt import** - Planned for future
+- **Basic search** - SQL LIKE (not full-text index)
 
 ## Security
 
-- **No credentials stored**: Only session cookies are saved
-- **Local database**: All data stored on your machine
-- **Secure deletion**: Use `logout` to clear session
-- **File permissions**: Database file should be readable only by you (600)
+- **No credentials stored** - Only session cookies
+- **Local data** - Everything stored on your machine
+- **Secure deletion** - Use `logout` to clear session
+- **File permissions** - Database should be 600 (user read/write only)
 
-### Security Best Practices
+### Best Practices
 
 1. Use `logout` when done syncing
-2. Don't share your database file (contains session data)
-3. Keep your system secure (database is not encrypted by default)
-4. Consider encrypting the database file for additional security
+2. Don't share database file (contains session data)
+3. Keep system secure (database not encrypted by default)
+4. Consider encrypting the database file
+
+## Stats
+
+- **Lines of code:** ~1,850 production code
+- **Modules:** 9 core modules
+- **CLI commands:** 8
+- **Export formats:** 3 (Markdown, JSON, CSV)
+- **Templates:** 3 export + 4 web
+- **Regions:** 8 Amazon regions
+- **Tests:** 115 tests, 62% coverage
+- **Dependencies:** 10 packages
 
 ## Inspiration
 
-This project is inspired by [obsidian-kindle-plugin](https://github.com/hadynz/obsidian-kindle-plugin), which provides similar functionality for Obsidian users. This implementation provides a standalone, CLI-focused alternative.
-
-## Contributing
-
-Contributions are welcome! Please:
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes with tests
-4. Run code quality checks (`ruff`, `mypy`, `pytest`)
-5. Submit a pull request
-
-## Roadmap
-
-### Version 0.2.0
-- [ ] Incremental sync optimization
-- [ ] Search within highlights
-- [ ] Custom template support
-- [ ] Export to Notion/Obsidian formats
-
-### Version 0.3.0
-- [ ] Web UI for browsing highlights
-- [ ] Statistics and analytics
-- [ ] Tagging system
-- [ ] Highlight annotations
-
-### Version 0.4.0
-- [ ] My Clippings.txt import
-- [ ] Multiple account support
-- [ ] Cloud backup integration
-- [ ] Mobile companion app
+Inspired by [obsidian-kindle-plugin](https://github.com/hadynz/obsidian-kindle-plugin). This project provides a standalone CLI/web alternative with more export options and local storage.
 
 ## License
 
-MIT License - see LICENSE file for details
+MIT License - see LICENSE file
 
-## Acknowledgments
+## Roadmap
 
-- Inspired by [obsidian-kindle-plugin](https://github.com/hadynz/obsidian-kindle-plugin)
-- Built with [Selenium](https://www.selenium.dev/), [BeautifulSoup](https://www.crummy.com/software/BeautifulSoup/), and [Click](https://click.palletsprojects.com/)
-
-## Support
-
-- **Issues**: [GitHub Issues](https://github.com/yourusername/kindle-highlights-sync/issues)
-- **Documentation**: See `docs/` directory
-- **Discussions**: [GitHub Discussions](https://github.com/yourusername/kindle-highlights-sync/discussions)
-
----
-
-**Happy highlighting!** 📚✨
+- [ ] Add more details to the book: Purchase date,Book,Author,Status,Format,Start date,End date,Reading time,Genres,Amazon link,ISBN,Classification,Goodreads link,price in GBP, price in INR
+- [ ] Fetch some of these details from Goodreads.
+- [ ] Add an option in the web interface to edit details to the book.
