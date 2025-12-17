@@ -30,13 +30,11 @@ A Python tool to sync your Kindle highlights from Amazon to a local SQLite datab
 git clone <repo-url>
 cd kindle-highlights-sync
 
-# Create virtual environment and install dependencies
-uv venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-uv pip install -e ".[dev]"
+# Install dependencies (creates .venv automatically)
+uv sync
 
 # Verify installation
-kindle-sync --version
+uv run kindle-sync --version
 ```
 
 ### Using pip
@@ -58,7 +56,7 @@ kindle-sync --version
 ### 1. Authenticate with Amazon
 
 ```bash
-kindle-sync login
+uv run kindle-sync login
 ```
 
 This opens a browser window where you log in to your Amazon account. Once authenticated, your session is saved locally.
@@ -66,7 +64,7 @@ This opens a browser window where you log in to your Amazon account. Once authen
 ### 2. Sync Your Highlights
 
 ```bash
-kindle-sync sync
+uv run kindle-sync sync
 ```
 
 This downloads all your books and highlights to a local SQLite database.
@@ -74,7 +72,7 @@ This downloads all your books and highlights to a local SQLite database.
 ### 3. Export Your Highlights
 
 ```bash
-kindle-sync export ./my-highlights
+uv run kindle-sync export ./my-highlights
 ```
 
 This exports all your highlights to Markdown files in the `./my-highlights` directory.
@@ -85,79 +83,79 @@ This exports all your highlights to Markdown files in the `./my-highlights` dire
 
 ```bash
 # Login with default region (amazon.com)
-kindle-sync login
+uv run kindle-sync login
 
 # Login with specific region
-kindle-sync login --region uk
+uv run kindle-sync login --region uk
 
 # Run browser in headless mode (no window)
-kindle-sync login --headless
+uv run kindle-sync login --headless
 ```
 
 ### Syncing
 
 ```bash
 # Incremental sync (default) - only new highlights
-kindle-sync sync
+uv run kindle-sync sync
 
 # Full sync - all books and highlights
-kindle-sync sync --full
+uv run kindle-sync sync --full
 
 # Sync specific books only
-kindle-sync sync --books abc123,def456
+uv run kindle-sync sync --books abc123,def456
 ```
 
 ### Exporting
 
 ```bash
 # Export all books to Markdown (default)
-kindle-sync export ./output
+uv run kindle-sync export ./output
 
 # Export to JSON
-kindle-sync export ./output --format json
+uv run kindle-sync export ./output --format json
 
 # Export to CSV
-kindle-sync export ./output --format csv
+uv run kindle-sync export ./output --format csv
 
 # Use custom template
-kindle-sync export ./output --template detailed
+uv run kindle-sync export ./output --template detailed
 
 # Export specific books only
-kindle-sync export ./output --books abc123,def456
+uv run kindle-sync export ./output --books abc123,def456
 ```
 
 ### Listing Books
 
 ```bash
 # List all books in database
-kindle-sync list
+uv run kindle-sync list
 
 # Output as JSON
-kindle-sync list --format json
+uv run kindle-sync list --format json
 
 # Sort by author
-kindle-sync list --sort author
+uv run kindle-sync list --sort author
 ```
 
 ### Show Book Details
 
 ```bash
 # Show details for a specific book
-kindle-sync show abc123
+uv run kindle-sync show abc123
 ```
 
 ### Check Status
 
 ```bash
 # Show sync status and statistics
-kindle-sync status
+uv run kindle-sync status
 ```
 
 ### Logout
 
 ```bash
 # Clear stored session
-kindle-sync logout
+uv run kindle-sync logout
 ```
 
 ## Configuration
@@ -168,7 +166,7 @@ Default: `~/.kindle-sync/highlights.db`
 
 Override with `--db` flag:
 ```bash
-kindle-sync --db /path/to/custom.db sync
+uv run kindle-sync --db /path/to/custom.db sync
 ```
 
 ### Supported Regions
@@ -198,16 +196,16 @@ Custom templates can be placed in `~/.kindle-sync/templates/`.
 
 ```bash
 # Initial setup
-kindle-sync login --region uk
-kindle-sync sync --full
+uv run kindle-sync login --region uk
+uv run kindle-sync sync --full
 
 # Daily workflow
-kindle-sync sync
-kindle-sync export ~/Documents/highlights
+uv run kindle-sync sync
+uv run kindle-sync export ~/Documents/highlights
 
 # Export specific book to JSON
-kindle-sync list  # Find book ID
-kindle-sync export ./output --books abc123 --format json
+uv run kindle-sync list  # Find book ID
+uv run kindle-sync export ./output --books abc123 --format json
 ```
 
 ## Output Examples
@@ -295,36 +293,36 @@ git clone <repo-url>
 cd kindle-highlights-sync
 
 # Install with dev dependencies
-uv pip install -e ".[dev]"
+uv sync
 ```
 
 ### Running Tests
 
 ```bash
 # Run all tests
-pytest
+uv run pytest
 
 # Run with coverage
-pytest --cov=kindle_sync --cov-report=html
+uv run pytest --cov=kindle_sync --cov-report=html
 
 # Run specific test
-pytest tests/test_database.py
+uv run pytest tests/test_database.py
 ```
 
 ### Code Quality
 
 ```bash
 # Format code
-ruff format .
+uv run ruff format .
 
 # Lint code
-ruff check .
+uv run ruff check .
 
 # Auto-fix issues
-ruff check --fix .
+uv run ruff check --fix .
 
 # Type checking
-mypy src/kindle_sync
+uv run mypy src/kindle_sync
 ```
 
 ### Pre-commit Checklist
@@ -332,17 +330,16 @@ mypy src/kindle_sync
 Before committing:
 
 ```bash
-ruff format .
-ruff check --fix .
-mypy src/kindle_sync
-pytest
+uv run ruff format .
+uv run ruff check --fix .
+uv run mypy src/kindle_sync
+uv run pytest
 ```
 
 ## Documentation
 
-- [Technical Specification](docs/SPECIFICATION.md) - Comprehensive technical spec
-- [Database Schema](docs/DATABASE.md) - Database design and queries
-- [API Documentation](docs/API.md) - Module APIs and interfaces
+- [Getting Started](docs/Getting-Started.md) - Installation and usage guide
+- [Technical Specification](docs/Specification.md) - Complete technical reference
 
 ## How It Works
 
@@ -381,19 +378,19 @@ pytest
 ### "Login failed"
 
 - Ensure you're using the correct region
-- Try non-headless mode: `kindle-sync login --no-headless`
+- Try non-headless mode: `uv run kindle-sync login --no-headless`
 - Check if two-factor authentication is enabled (may require manual intervention)
 
 ### "Session expired"
 
-- Run `kindle-sync logout` and then `kindle-sync login` again
+- Run `uv run kindle-sync logout` and then `uv run kindle-sync login` again
 - Amazon sessions typically expire after a week
 
 ### "No books found"
 
 - Ensure you have highlights in your Amazon Kindle account
 - Check that you're using the correct region
-- Try `kindle-sync sync --full` for a complete refresh
+- Try `uv run kindle-sync sync --full` for a complete refresh
 
 ### "Database locked"
 
