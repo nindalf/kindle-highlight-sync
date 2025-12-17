@@ -129,14 +129,15 @@ class Exporter:
             file_path = output_path
 
         # Export based on format
-        if format == ExportFormat.MARKDOWN:
-            content = self._export_markdown(book_highlights, template)
-        elif format == ExportFormat.JSON:
-            content = self._export_json(book_highlights)
-        elif format == ExportFormat.CSV:
-            content = self._export_csv(book_highlights)
-        else:
-            raise ExportError(f"Unsupported export format: {format}")
+        match format:
+            case ExportFormat.MARKDOWN:
+                content = self._export_markdown(book_highlights, template)
+            case ExportFormat.JSON:
+                content = self._export_json(book_highlights)
+            case ExportFormat.CSV:
+                content = self._export_csv(book_highlights)
+            case _:
+                raise ExportError(f"Unsupported export format: {format}")
 
         # Write to file
         try:

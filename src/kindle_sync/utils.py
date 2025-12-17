@@ -4,9 +4,6 @@ import re
 import time
 from collections.abc import Callable
 from functools import wraps
-from typing import TypeVar
-
-T = TypeVar("T")
 
 
 def fletcher16(text: str) -> str:
@@ -133,7 +130,7 @@ def extract_author_last_name(author: str) -> str:
     return parts[-1] if parts else "Unknown"
 
 
-def retry(
+def retry[T](
     max_attempts: int = 3,
     delay: float = 2.0,
     backoff: int = 2,

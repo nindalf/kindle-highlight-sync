@@ -50,7 +50,10 @@ class KindleScraper:
             )
             response.raise_for_status()
         except requests.RequestException as e:
-            raise ScraperError(f"Failed to fetch notebook page: {e}") from e
+            exc = ScraperError("Failed to fetch notebook page")
+            exc.add_note(f"URL: {self.region_config.notebook_url}")
+            exc.add_note(f"Region: {self.region}")
+            raise exc from e
 
         soup = BeautifulSoup(response.text, "html.parser")
         book_elements = soup.select(".kp-notebook-library-each-book")
@@ -127,7 +130,10 @@ class KindleScraper:
             response = self.session.get(url, timeout=Config.REQUEST_TIMEOUT)
             response.raise_for_status()
         except requests.RequestException as e:
-            raise ScraperError(f"Failed to fetch highlights page: {e}") from e
+            exc = ScraperError("Failed to fetch highlights page")
+            exc.add_note(f"ASIN: {asin}")
+            exc.add_note(f"URL: {url}")
+            raise exc from e
 
         soup = BeautifulSoup(response.text, "html.parser")
 
@@ -326,24 +332,27 @@ class KindleScraper:
         # Try different date formats based on region
         formats = []
 
-        if self.region == AmazonRegion.GLOBAL or self.region == AmazonRegion.UK:
-            # Format: "Sunday October 24, 2021"
-            formats.extend(["%A %B %d, %Y", "%B %d, %Y", "%A, %B %d, %Y"])
-        elif self.region == AmazonRegion.JAPAN:
-            # Format: "2021年11月15日 月曜日"
-            formats.extend(["%Y年%m月%d日 %A", "%Y年%m月%d日", "%Y %m %d"])
-        elif self.region == AmazonRegion.FRANCE:
-            # Format: "mardi août 30, 2022"
-            formats.extend(["%A %B %d, %Y", "%B %d, %Y"])
-        elif self.region == AmazonRegion.GERMANY:
-            # Format might be similar to English
-            formats.extend(["%A %B %d, %Y", "%B %d, %Y", "%d. %B %Y"])
-        elif self.region == AmazonRegion.SPAIN:
-            # Format might have "de" between elements
-            date_text = date_text.replace(" de ", " ")
-            formats.extend(["%A %B %d, %Y", "%B %d, %Y", "%d %B %Y"])
-        elif self.region == AmazonRegion.ITALY:
-            formats.extend(["%A %B %d, %Y", "%B %d, %Y", "%d %B %Y"])
+        match self.region:
+            case AmazonRegion.GLOBAL | AmazonRegion.UK:
+                # Format: "Sunday October 24, 2021"
+                formats.extend(["%A %B %d, %Y", "%B %d, %Y", "%A, %B %d, %Y"])
+            case AmazonRegion.JAPAN:
+                # Format: "2021年11月15日 月曜日"
+                formats.extend(["%Y年%m月%d日 %A", "%Y年%m月%d日", "%Y %m %d"])
+            case AmazonRegion.FRANCE:
+                # Format: "mardi août 30, 2022"
+                formats.extend(["%A %B %d, %Y", "%B %d, %Y"])
+            case AmazonRegion.GERMANY:
+                # Format might be similar to English
+                formats.extend(["%A %B %d, %Y", "%B %d, %Y", "%d. %B %Y"])
+            case AmazonRegion.SPAIN:
+                # Format might have "de" between elements
+                date_text = date_text.replace(" de ", " ")
+                formats.extend(["%A %B %d, %Y", "%B %d, %Y", "%d %B %Y"])
+            case AmazonRegion.ITALY:
+                formats.extend(["%A %B %d, %Y", "%B %d, %Y", "%d %B %Y"])
+            case AmazonRegion.INDIA:
+                formats.extend(["%A %B %d, %Y", "%B %d, %Y"])
 
         # Common fallback formats
         formats.extend(["%Y-%m-%d", "%d/%m/%Y", "%m/%d/%Y"])

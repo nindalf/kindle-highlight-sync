@@ -75,7 +75,11 @@ class AuthManager:
             print("✓ Login successful! Session saved.")
             return True
         except Exception as e:
-            raise AuthenticationError(f"Login failed: {e}") from e
+            exc = AuthenticationError("Login failed")
+            exc.add_note(f"Region: {self.region_config.name}")
+            exc.add_note(f"Headless mode: {headless}")
+            exc.add_note(f"Login URL: {self.region_config.kindle_reader_url}")
+            raise exc from e
 
     def logout(self) -> None:
         """Clear stored session cookies."""

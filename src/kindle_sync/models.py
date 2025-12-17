@@ -2,10 +2,10 @@
 
 from dataclasses import dataclass
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 
 
-class HighlightColor(Enum):
+class HighlightColor(StrEnum):
     """Kindle highlight colors."""
 
     YELLOW = "yellow"
@@ -14,7 +14,7 @@ class HighlightColor(Enum):
     ORANGE = "orange"
 
 
-class AmazonRegion(Enum):
+class AmazonRegion(StrEnum):
     """Supported Amazon regions."""
 
     GLOBAL = "global"
@@ -27,7 +27,7 @@ class AmazonRegion(Enum):
     FRANCE = "france"
 
 
-class ExportFormat(Enum):
+class ExportFormat(StrEnum):
     """Supported export formats."""
 
     MARKDOWN = "markdown"
