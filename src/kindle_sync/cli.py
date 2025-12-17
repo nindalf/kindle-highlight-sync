@@ -372,5 +372,27 @@ def show(ctx: click.Context, asin: str) -> None:
             console.print(f"... and {len(highlights) - 5} more highlight(s)")
 
 
+@main.command()
+@click.option("--host", default="127.0.0.1", help="Host to bind to")
+@click.option("--port", default=5000, type=int, help="Port to bind to")
+@click.option("--debug", is_flag=True, help="Enable debug mode")
+@click.pass_context
+def web(ctx: click.Context, host: str, port: int, debug: bool) -> None:
+    """Start web interface for browsing highlights."""
+    from kindle_sync.web import create_app
+
+    db_path = ctx.obj["db_path"]
+    app = create_app(db_path)
+
+    console.print(f"[bold]Starting web server...[/bold]")
+    console.print(f"Open your browser to: [cyan]http://{host}:{port}[/cyan]")
+    console.print("Press [red]Ctrl+C[/red] to stop\n")
+
+    try:
+        app.run(host=host, port=port, debug=debug)
+    except KeyboardInterrupt:
+        console.print("\n✓ Server stopped", style="green")
+
+
 if __name__ == "__main__":
     main()

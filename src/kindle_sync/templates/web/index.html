@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block title %}My Kindle Books{% endblock %}
+
+{% block content %}
+{% if last_sync %}
+<div class="stats">
+    <p><strong>{{ total_books }}</strong> books with highlights | Last synced: {{ format_datetime(last_sync) }}</p>
+</div>
+{% endif %}
+
+{% if books %}
+<div class="book-grid">
+    {% for item in books %}
+    <a href="{{ url_for('book', asin=item.book.asin) }}" class="book-card">
+        <div class="book-title">{{ item.book.title }}</div>
+        <div class="book-author">by {{ item.book.author }}</div>
+        <div class="book-meta">
+            <span>{{ item.book.asin }}</span>
+            <span class="highlight-count">{{ item.highlight_count }} highlights</span>
+        </div>
+    </a>
+    {% endfor %}
+</div>
+{% else %}
+<div class="empty-state">
+    <h2>No books yet</h2>
+    <p>Run <code>kindle-sync login</code> and <code>kindle-sync sync</code> to get started</p>
+</div>
+{% endif %}
+{% endblock %}

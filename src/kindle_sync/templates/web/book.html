@@ -1,0 +1,42 @@
+{% extends "base.html" %} {% block title %}{{ book.title }} - Kindle
+Highlights{% endblock %} {% block content %}
+<a href="{{ url_for('index') }}" class="back-link">← Back to all books</a>
+
+<div class="book-header">
+    <h2>{{ book.title }}</h2>
+    <div class="author">by {{ book.author }}</div>
+    <div class="meta">
+        <span>ASIN: {{ book.asin }}</span>
+        <span>{{ highlights|length }} highlights</span>
+        {% if book.last_sync %}
+        <span>Last synced: {{ format_date(book.last_sync) }}</span>
+        {% endif %}
+    </div>
+</div>
+
+{% if highlights %} {% for highlight in highlights %}
+<div class="highlight {{ color_class(highlight.color) }}">
+    <div class="highlight-text">{{ highlight.text }}</div>
+
+    {% if highlight.note %}
+    <div class="highlight-note">Note: {{ highlight.note }}</div>
+    {% endif %}
+
+    <div class="highlight-meta">
+        <span>
+            {% if highlight.page %} Page {{ highlight.page }} {% endif %} {% if
+            highlight.location %} · Location {{ highlight.location }} {% endif
+            %}
+        </span>
+        <span>
+            {% if highlight.created_date %} {{
+            format_date(highlight.created_date) }} {% endif %}
+        </span>
+    </div>
+</div>
+{% endfor %} {% else %}
+<div class="empty-state">
+    <h2>No highlights found</h2>
+    <p>Run <code>kindle-sync sync</code> to sync highlights for this book</p>
+</div>
+{% endif %} {% endblock %}
