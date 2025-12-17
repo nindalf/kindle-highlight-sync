@@ -4,7 +4,7 @@ import sqlite3
 from datetime import datetime
 from pathlib import Path
 
-from kindle_sync.models import Book
+from kindle_sync.models import Book, Highlight, HighlightColor
 
 
 class DatabaseError(Exception):
@@ -317,3 +317,154 @@ class DatabaseManager:
             timestamp: Sync timestamp
         """
         self.save_session("last_sync", timestamp.isoformat())
+
+    # Highlight operations
+    def insert_highlight(self, highlight: Highlight) -> None:
+        """
+        Insert or update a highlight.
+
+        Uses UPSERT logic - if highlight exists, updates it.
+
+        Args:
+            highlight: Highlight object to insert
+
+        Raises:
+            DatabaseError: If insertion fails
+        """
+        self.connect()
+        assert self.conn is not None
+
+        try:
+            self.conn.execute(
+                """
+                INSERT INTO highlights (
+                    id, book_asin, text, location, page, note, color, created_date
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(id) DO UPDATE SET
+                    text = excluded.text,
+                    location = excluded.location,
+                    page = excluded.page,
+                    note = excluded.note,
+                    color = excluded.color,
+                    created_date = excluded.created_date
+                """,
+                (
+                    highlight.id,
+                    highlight.book_asin,
+                    highlight.text,
+                    highlight.location,
+                    highlight.page,
+                    highlight.note,
+                    highlight.color.value if highlight.color else None,
+                    highlight.created_date.isoformat() if highlight.created_date else None,
+                ),
+            )
+            self.conn.commit()
+        except sqlite3.Error as e:
+            raise DatabaseError(f"Failed to insert highlight: {e}") from e
+
+    def get_highlights(self, book_asin: str) -> list[Highlight]:
+        """
+        Get all highlights for a book.
+
+        Args:
+            book_asin: Book ASIN
+
+        Returns:
+            List of Highlight objects, ordered by location
+        """
+        self.connect()
+        assert self.conn is not None
+
+        cursor = self.conn.execute(
+            """
+            SELECT id, book_asin, text, location, page, note, color,
+                   created_date, created_at
+            FROM highlights
+            WHERE book_asin = ?
+            ORDER BY
+                CASE
+                    WHEN location IS NOT NULL THEN
+                        CAST(substr(location, 1, instr(location || '-', '-') - 1) AS INTEGER)
+                    ELSE 999999
+                END
+            """,
+            (book_asin,),
+        )
+
+        highlights = []
+        for row in cursor.fetchall():
+            highlights.append(
+                Highlight(
+                    id=row[0],
+                    book_asin=row[1],
+                    text=row[2],
+                    location=row[3],
+                    page=row[4],
+                    note=row[5],
+                    color=HighlightColor(row[6]) if row[6] else None,
+                    created_date=datetime.fromisoformat(row[7]) if row[7] else None,
+                    created_at=datetime.fromisoformat(row[8]) if row[8] else None,
+                )
+            )
+
+        return highlights
+
+    def get_highlight_count(self, book_asin: str) -> int:
+        """
+        Get number of highlights for a book.
+
+        Args:
+            book_asin: Book ASIN
+
+        Returns:
+            Number of highlights
+        """
+        self.connect()
+        assert self.conn is not None
+
+        cursor = self.conn.execute(
+            "SELECT COUNT(*) FROM highlights WHERE book_asin = ?", (book_asin,)
+        )
+        row = cursor.fetchone()
+        return row[0] if row else 0
+
+    def highlight_exists(self, highlight_id: str) -> bool:
+        """
+        Check if a highlight exists.
+
+        Args:
+            highlight_id: Highlight ID to check
+
+        Returns:
+            True if highlight exists, False otherwise
+        """
+        self.connect()
+        assert self.conn is not None
+
+        cursor = self.conn.execute("SELECT 1 FROM highlights WHERE id = ?", (highlight_id,))
+        return cursor.fetchone() is not None
+
+    def delete_highlights(self, highlight_ids: list[str]) -> None:
+        """
+        Delete highlights by IDs.
+
+        Args:
+            highlight_ids: List of highlight IDs to delete
+
+        Raises:
+            DatabaseError: If deletion fails
+        """
+        if not highlight_ids:
+            return
+
+        self.connect()
+        assert self.conn is not None
+
+        try:
+            placeholders = ",".join("?" * len(highlight_ids))
+            self.conn.execute(f"DELETE FROM highlights WHERE id IN ({placeholders})", highlight_ids)
+            self.conn.commit()
+        except sqlite3.Error as e:
+            raise DatabaseError(f"Failed to delete highlights: {e}") from e
