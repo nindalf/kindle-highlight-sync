@@ -67,7 +67,7 @@ class Book:
 **Example**:
 ```python
 book = Book(
-    id="3a7f",
+    asin="B01N5AX61W",
     title="Atomic Habits",
     author="James Clear",
     asin="B01N5AX61W",
@@ -94,8 +94,8 @@ class Highlight:
     id: str
     """Fletcher-16 hash of lowercase text."""
     
-    book_id: str
-    """Foreign key to Book.id."""
+    book_asin: str
+    """Foreign key to Book.asin."""
     
     text: str
     """The highlighted text content."""
@@ -123,7 +123,7 @@ class Highlight:
 ```python
 highlight = Highlight(
     id="9f2e",
-    book_id="3a7f",
+    book_asin="3a7f",
     text="You do not rise to the level of your goals...",
     location="254-267",
     page="12",
@@ -287,12 +287,12 @@ class DatabaseManager:
             DatabaseError: If insertion fails
         """
     
-    def get_book(self, book_id: str) -> Optional[Book]:
+    def get_book(self, book_asin: str) -> Optional[Book]:
         """
         Get a book by ID.
         
         Args:
-            book_id: Book ID (Fletcher-16 hash)
+            asin: Book ASIN (Fletcher-16 hash)
             
         Returns:
             Book object if found, None otherwise
@@ -306,20 +306,20 @@ class DatabaseManager:
             List of Book objects, ordered by title
         """
     
-    def delete_book(self, book_id: str) -> None:
+    def delete_book(self, book_asin: str) -> None:
         """
         Delete a book and all its highlights (CASCADE).
         
         Args:
-            book_id: Book ID to delete
+            asin: Book ASIN to delete
         """
     
-    def book_exists(self, book_id: str) -> bool:
+    def book_exists(self, book_asin: str) -> bool:
         """
         Check if a book exists.
         
         Args:
-            book_id: Book ID to check
+            asin: Book ASIN to check
             
         Returns:
             True if book exists, False otherwise
@@ -332,7 +332,8 @@ db = DatabaseManager("~/.kindle-sync/highlights.db")
 db.init_schema()
 
 # Insert a book
-book = Book(id="3a7f", title="Atomic Habits", author="James Clear")
+book = Book(
+    asin="B01N5AX61W",id="3a7f", title="Atomic Habits", author="James Clear")
 db.insert_book(book)
 
 # Get a book
@@ -362,12 +363,12 @@ class DatabaseManager:
             Number of highlights inserted (excluding duplicates)
         """
     
-    def get_highlights(self, book_id: str) -> list[Highlight]:
+    def get_highlights(self, book_asin: str) -> list[Highlight]:
         """
         Get all highlights for a book.
         
         Args:
-            book_id: Book ID
+            asin: Book ASIN
             
         Returns:
             List of Highlight objects, ordered by location
@@ -381,23 +382,23 @@ class DatabaseManager:
             List of Highlight objects
         """
     
-    def get_book_with_highlights(self, book_id: str) -> Optional[BookHighlights]:
+    def get_book_with_highlights(self, book_asin: str) -> Optional[BookHighlights]:
         """
         Get a book with all its highlights.
         
         Args:
-            book_id: Book ID
+            asin: Book ASIN
             
         Returns:
             BookHighlights object if book found, None otherwise
         """
     
-    def delete_highlights(self, book_id: str) -> None:
+    def delete_highlights(self, book_asin: str) -> None:
         """
         Delete all highlights for a book.
         
         Args:
-            book_id: Book ID
+            asin: Book ASIN
         """
 ```
 
@@ -405,8 +406,8 @@ class DatabaseManager:
 ```python
 # Insert highlights
 highlights = [
-    Highlight(id="h1", book_id="3a7f", text="First highlight"),
-    Highlight(id="h2", book_id="3a7f", text="Second highlight")
+    Highlight(id="h1", book_asin="B01N5AX61W", text="First highlight"),
+    Highlight(id="h2", book_asin="B01N5AX61W", text="Second highlight")
 ]
 count = db.insert_highlights(highlights)
 print(f"Inserted {count} highlights")
@@ -732,7 +733,7 @@ class KindleScraper:
     def _parse_book_element(self, element: BeautifulSoup) -> Book:
         """Parse a single book HTML element."""
     
-    def _parse_highlight_element(self, element: BeautifulSoup, book_id: str) -> Highlight:
+    def _parse_highlight_element(self, element: BeautifulSoup, book_asin: str) -> Highlight:
         """Parse a single highlight HTML element."""
     
     def _parse_date(self, date_str: str) -> datetime:
@@ -794,7 +795,7 @@ class Exporter:
     
     def export_book(
         self,
-        book_id: str,
+        book_asin: str,
         output_path: str,
         format: ExportFormat = ExportFormat.MARKDOWN,
         template_name: str = "default"
@@ -803,7 +804,7 @@ class Exporter:
         Export a single book.
         
         Args:
-            book_id: Book ID to export
+            asin: Book ASIN to export
             output_path: Output file path
             format: Export format
             template_name: Template name (for Markdown)
@@ -833,7 +834,7 @@ print(f"Exported {len(files)} files")
 
 # Export specific book to JSON
 exporter.export_book(
-    book_id="3a7f",
+    book_asin="3a7f",
     output_path="./atomic-habits.json",
     format=ExportFormat.JSON
 )
@@ -1197,9 +1198,9 @@ def list_books(ctx: click.Context, format: str, sort: str) -> None:
 
 ```python
 @main.command()
-@click.argument("book_id")
+@click.argument("asin")
 @click.pass_context
-def show(ctx: click.Context, book_id: str) -> None:
+def show(ctx: click.Context, asin: str) -> None:
     """Show details of a specific book."""
 ```
 

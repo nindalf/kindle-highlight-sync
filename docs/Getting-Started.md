@@ -342,7 +342,7 @@ sqlite3 ~/.kindle-sync/highlights.db
 # Search for highlights containing "productivity"
 SELECT b.title, h.text 
 FROM highlights h 
-JOIN books b ON h.book_id = b.id 
+JOIN books b ON h.book_asin = b.asin 
 WHERE h.text LIKE '%productivity%';
 ```
 

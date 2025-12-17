@@ -171,10 +171,9 @@ class AmazonRegion(Enum):
 @dataclass
 class Book:
     """Represents a Kindle book."""
-    id: str                           # Fletcher-16 hash of title
+    asin: str                         # Amazon Standard Identification Number (Primary Key)
     title: str
     author: str
-    asin: Optional[str] = None        # Amazon Standard Identification Number
     url: Optional[str] = None
     image_url: Optional[str] = None
     last_annotated_date: Optional[datetime] = None
@@ -186,7 +185,7 @@ class Book:
 class Highlight:
     """Represents a Kindle highlight."""
     id: str                           # Fletcher-16 hash of text
-    book_id: str
+    book_asin: str                    # Foreign key to Book.asin
     text: str
     location: Optional[str] = None    # Kindle location (e.g., "1234-1456")
     page: Optional[str] = None
@@ -214,15 +213,18 @@ class RegionConfig:
 
 ### ID Generation Strategy
 
-Uses **Fletcher-16 checksum** algorithm for generating IDs:
-- **Book ID**: Hash of lowercase title
-- **Highlight ID**: Hash of lowercase highlight text
-
-**Rationale**: Fast, non-cryptographic, collision-resistant for this use case.
+- **Book ID**: Uses ASIN (Amazon Standard Identification Number) as the primary key
+  - 10-character alphanumeric identifier
+  - Unique per book across Amazon's catalog
+  - Example: B01N5AX61W
+- **Highlight ID**: Uses Fletcher-16 checksum hash of lowercase highlight text
+  - 4-character hexadecimal string
+  - Fast, non-cryptographic hash
+  - Collision-resistant for this use case
 
 ```python
 def fletcher16(text: str) -> str:
-    """Generate Fletcher-16 checksum for text."""
+    """Generate Fletcher-16 checksum for highlight text."""
     data = text.lower().encode('utf-8')
     sum1 = sum2 = 0
     for byte in data:
@@ -230,6 +232,10 @@ def fletcher16(text: str) -> str:
         sum2 = (sum2 + sum1) % 255
     checksum = (sum2 << 8) | sum1
     return f"{checksum:04x}"
+
+# Example
+highlight_text = "You do not rise to the level of your goals"
+highlight_id = fletcher16(highlight_text)  # Returns "9f2e"
 ```
 
 ---
@@ -348,20 +354,20 @@ class DatabaseManager:
     def insert_book(self, book: Book) -> None:
         """Insert or update a book."""
         
-    def get_book(self, book_id: str) -> Optional[Book]:
-        """Get book by ID."""
+    def get_book(self, asin: str) -> Optional[Book]:
+        """Get book by ASIN."""
         
     def get_all_books(self) -> list[Book]:
         """Get all books."""
         
-    def delete_book(self, book_id: str) -> None:
+    def delete_book(self, asin: str) -> None:
         """Delete a book and its highlights."""
         
     # Highlight operations
     def insert_highlights(self, highlights: list[Highlight]) -> None:
         """Batch insert highlights."""
         
-    def get_highlights(self, book_id: str) -> list[Highlight]:
+    def get_highlights(self, asin: str) -> list[Highlight]:
         """Get all highlights for a book."""
         
     def get_all_highlights(self) -> list[Highlight]:
@@ -415,7 +421,7 @@ class Exporter:
         
     def export_book(
         self,
-        book_id: str,
+        asin: str,
         output_path: str,
         format: ExportFormat = ExportFormat.MARKDOWN,
         template_name: str = "default"
@@ -481,10 +487,9 @@ class Config:
 ```sql
 -- Books table
 CREATE TABLE IF NOT EXISTS books (
-    id TEXT PRIMARY KEY,                    -- Fletcher-16 hash of title
+    asin TEXT PRIMARY KEY,                  -- Amazon Standard Identification Number
     title TEXT NOT NULL,
     author TEXT NOT NULL,
-    asin TEXT,
     url TEXT,
     image_url TEXT,
     last_annotated_date TEXT,               -- ISO 8601 format
@@ -494,12 +499,11 @@ CREATE TABLE IF NOT EXISTS books (
 
 CREATE INDEX idx_books_author ON books(author);
 CREATE INDEX idx_books_title ON books(title);
-CREATE INDEX idx_books_asin ON books(asin);
 
 -- Highlights table
 CREATE TABLE IF NOT EXISTS highlights (
     id TEXT PRIMARY KEY,                    -- Fletcher-16 hash of text
-    book_id TEXT NOT NULL,
+    book_asin TEXT NOT NULL,
     text TEXT NOT NULL,
     location TEXT,
     page TEXT,
@@ -507,10 +511,10 @@ CREATE TABLE IF NOT EXISTS highlights (
     color TEXT,
     created_date TEXT,                      -- ISO 8601 format
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (book_id) REFERENCES books(id) ON DELETE CASCADE
+    FOREIGN KEY (book_asin) REFERENCES books(asin) ON DELETE CASCADE
 );
 
-CREATE INDEX idx_highlights_book_id ON highlights(book_id);
+CREATE INDEX idx_highlights_book_asin ON highlights(book_asin);
 CREATE INDEX idx_highlights_color ON highlights(color);
 
 -- Session table (for authentication cookies and state)
@@ -735,10 +739,9 @@ Different regions use different date formats:
 ```json
 {
   "book": {
-    "id": "abc123",
+    "asin": "B0123456789",
     "title": "Example Book",
     "author": "John Doe",
-    "asin": "B0123456789",
     "url": "https://www.amazon.com/dp/B0123456789",
     "image_url": "https://...",
     "last_annotated_date": "2023-10-15T14:30:00"
@@ -746,7 +749,7 @@ Different regions use different date formats:
   "highlights": [
     {
       "id": "def456",
-      "book_id": "abc123",
+      "book_asin": "B0123456789",
       "text": "This is a highlight",
       "location": "1234-1456",
       "page": "42",
@@ -1126,10 +1129,9 @@ def temp_db():
 def sample_book():
     """Sample book for testing."""
     return Book(
-        id="test123",
+        asin="B0123456789",
         title="Test Book",
-        author="Test Author",
-        asin="B0123456789"
+        author="Test Author"
     )
 
 @pytest.fixture
@@ -1138,12 +1140,12 @@ def sample_highlights():
     return [
         Highlight(
             id="h1",
-            book_id="test123",
+            book_asin="B0123456789",
             text="Test highlight 1"
         ),
         Highlight(
             id="h2",
-            book_id="test123",
+            book_asin="B0123456789",
             text="Test highlight 2"
         )
     ]

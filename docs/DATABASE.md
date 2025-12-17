@@ -16,10 +16,9 @@ The Kindle Highlights Sync application uses SQLite as its local database. This d
 ┌─────────────────────────────────────┐
 │             books                   │
 ├─────────────────────────────────────┤
-│ id (PK)                TEXT         │
+│ asin (PK)              TEXT         │
 │ title                  TEXT         │
 │ author                 TEXT         │
-│ asin                   TEXT         │
 │ url                    TEXT         │
 │ image_url              TEXT         │
 │ last_annotated_date    TEXT         │
@@ -33,7 +32,7 @@ The Kindle Highlights Sync application uses SQLite as its local database. This d
 │          highlights                 │
 ├─────────────────────────────────────┤
 │ id (PK)                TEXT         │
-│ book_id (FK)           TEXT         │────┐
+│ book_asin (FK)         TEXT         │────┐
 │ text                   TEXT         │    │
 │ location               TEXT         │    │
 │ page                   TEXT         │    │
@@ -55,10 +54,9 @@ Stores metadata about Kindle books.
 
 ```sql
 CREATE TABLE IF NOT EXISTS books (
-    id TEXT PRIMARY KEY,
+    asin TEXT PRIMARY KEY,
     title TEXT NOT NULL,
     author TEXT NOT NULL,
-    asin TEXT,
     url TEXT,
     image_url TEXT,
     last_annotated_date TEXT,
@@ -69,17 +67,15 @@ CREATE TABLE IF NOT EXISTS books (
 -- Indexes for performance
 CREATE INDEX idx_books_author ON books(author);
 CREATE INDEX idx_books_title ON books(title);
-CREATE INDEX idx_books_asin ON books(asin);
 ```
 
 #### Columns
 
 | Column               | Type | Nullable | Description                                           |
 |----------------------|------|----------|-------------------------------------------------------|
-| `id`                 | TEXT | No       | Fletcher-16 hash of lowercase title (Primary Key)     |
+| `asin`               | TEXT | No       | Amazon Standard Identification Number (Primary Key)   |
 | `title`              | TEXT | No       | Book title                                            |
 | `author`             | TEXT | No       | Book author(s)                                        |
-| `asin`               | TEXT | Yes      | Amazon Standard Identification Number                 |
 | `url`                | TEXT | Yes      | Amazon product page URL                               |
 | `image_url`          | TEXT | Yes      | Book cover image URL                                  |
 | `last_annotated_date`| TEXT | Yes      | ISO 8601 timestamp of last annotation                 |
@@ -90,10 +86,9 @@ CREATE INDEX idx_books_asin ON books(asin);
 
 ```sql
 INSERT INTO books VALUES (
-    '3a7f',                                    -- id
+    'B01N5AX61W',                              -- asin
     'Atomic Habits',                           -- title
     'James Clear',                             -- author
-    'B01N5AX61W',                              -- asin
     'https://www.amazon.com/dp/B01N5AX61W',    -- url
     'https://m.media-amazon.com/images/...',   -- image_url
     '2023-10-15T14:30:00',                     -- last_annotated_date
@@ -104,9 +99,9 @@ INSERT INTO books VALUES (
 
 #### Notes
 
-- **ID Generation**: Generated using Fletcher-16 checksum of lowercase title
+- **Primary Key**: ASIN (Amazon Standard Identification Number) is unique per book
 - **Timestamps**: All timestamps stored in ISO 8601 format (UTC)
-- **ASIN**: Unique identifier used by Amazon; may be null for some books
+- **ASIN Format**: 10-character alphanumeric identifier (e.g., B01N5AX61W)
 - **Updates**: `updated_at` should be updated whenever the record changes
 
 ---
@@ -118,7 +113,7 @@ Stores individual highlights/annotations from books.
 ```sql
 CREATE TABLE IF NOT EXISTS highlights (
     id TEXT PRIMARY KEY,
-    book_id TEXT NOT NULL,
+    book_asin TEXT NOT NULL,
     text TEXT NOT NULL,
     location TEXT,
     page TEXT,
@@ -126,11 +121,11 @@ CREATE TABLE IF NOT EXISTS highlights (
     color TEXT,
     created_date TEXT,
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (book_id) REFERENCES books(id) ON DELETE CASCADE
+    FOREIGN KEY (book_asin) REFERENCES books(asin) ON DELETE CASCADE
 );
 
 -- Indexes for performance
-CREATE INDEX idx_highlights_book_id ON highlights(book_id);
+CREATE INDEX idx_highlights_book_asin ON highlights(book_asin);
 CREATE INDEX idx_highlights_color ON highlights(color);
 ```
 
@@ -139,7 +134,7 @@ CREATE INDEX idx_highlights_color ON highlights(color);
 | Column         | Type | Nullable | Description                                      |
 |----------------|------|----------|--------------------------------------------------|
 | `id`           | TEXT | No       | Fletcher-16 hash of lowercase text (Primary Key) |
-| `book_id`      | TEXT | No       | Foreign key to books.id                          |
+| `book_asin`    | TEXT | No       | Foreign key to books.asin                        |
 | `text`         | TEXT | No       | The highlighted text content                     |
 | `location`     | TEXT | Yes      | Kindle location (e.g., "1234-1456")              |
 | `page`         | TEXT | Yes      | Page number (if available)                       |
@@ -153,7 +148,7 @@ CREATE INDEX idx_highlights_color ON highlights(color);
 ```sql
 INSERT INTO highlights VALUES (
     '9f2e',                                                      -- id
-    '3a7f',                                                      -- book_id
+    'B01N5AX61W',                                                -- book_asin
     'You do not rise to the level of your goals. You fall...',  -- text
     '254-267',                                                   -- location
     '12',                                                        -- page
@@ -267,21 +262,21 @@ INSERT INTO sync_metadata VALUES (
 
 - One book can have many highlights
 - Each highlight belongs to exactly one book
-- Foreign key: `highlights.book_id` → `books.id`
+- Foreign key: `highlights.book_asin` → `books.asin`
 - Cascade delete: Deleting a book deletes all its highlights
 
 ```sql
 -- Get all highlights for a book
 SELECT h.* 
 FROM highlights h
-WHERE h.book_id = '3a7f'
+WHERE h.book_asin = 'B01N5AX61W'
 ORDER BY h.location;
 
 -- Get book with highlight count
 SELECT b.*, COUNT(h.id) as highlight_count
 FROM books b
-LEFT JOIN highlights h ON b.id = h.book_id
-GROUP BY b.id;
+LEFT JOIN highlights h ON b.asin = h.book_asin
+GROUP BY b.asin;
 ```
 
 ---
@@ -294,14 +289,14 @@ GROUP BY b.id;
 
 ```sql
 SELECT 
-    b.id,
+    b.asin,
     b.title,
     b.author,
     b.last_annotated_date,
     COUNT(h.id) as highlight_count
 FROM books b
-LEFT JOIN highlights h ON b.id = h.book_id
-GROUP BY b.id
+LEFT JOIN highlights h ON b.asin = h.book_asin
+GROUP BY b.asin
 ORDER BY b.last_annotated_date DESC;
 ```
 
@@ -316,7 +311,7 @@ SELECT
     b.author,
     h.created_date
 FROM highlights h
-JOIN books b ON h.book_id = b.id
+JOIN books b ON h.book_asin = b.asin
 ORDER BY h.created_date DESC
 LIMIT 20;
 ```
@@ -330,7 +325,7 @@ SELECT
     b.title,
     b.author
 FROM highlights h
-JOIN books b ON h.book_id = b.id
+JOIN books b ON h.book_asin = b.asin
 WHERE h.text LIKE '%productivity%'
    OR h.note LIKE '%productivity%'
 ORDER BY b.title;
@@ -344,7 +339,7 @@ SELECT
     h.location,
     b.title
 FROM highlights h
-JOIN books b ON h.book_id = b.id
+JOIN books b ON h.book_asin = b.asin
 WHERE h.color = 'yellow'
 ORDER BY h.created_date DESC;
 ```
@@ -354,7 +349,7 @@ ORDER BY h.created_date DESC;
 ```sql
 SELECT b.*
 FROM books b
-LEFT JOIN highlights h ON b.id = h.book_id
+LEFT JOIN highlights h ON b.asin = h.book_asin
 WHERE h.id IS NULL;
 ```
 
@@ -362,16 +357,16 @@ WHERE h.id IS NULL;
 
 ```sql
 SELECT 
-    COUNT(DISTINCT b.id) as total_books,
+    COUNT(DISTINCT b.asin) as total_books,
     COUNT(h.id) as total_highlights,
     AVG(highlight_count) as avg_highlights_per_book
 FROM books b
-LEFT JOIN highlights h ON b.id = h.book_id
+LEFT JOIN highlights h ON b.asin = h.book_asin
 LEFT JOIN (
-    SELECT book_id, COUNT(*) as highlight_count
+    SELECT book_asin, COUNT(*) as highlight_count
     FROM highlights
-    GROUP BY book_id
-) hc ON b.id = hc.book_id;
+    GROUP BY book_asin
+) hc ON b.asin = hc.book_asin;
 ```
 
 ---
@@ -390,10 +385,9 @@ def init_schema(conn: sqlite3.Connection) -> None:
     # Create books table
     conn.execute("""
         CREATE TABLE IF NOT EXISTS books (
-            id TEXT PRIMARY KEY,
+            asin TEXT PRIMARY KEY,
             title TEXT NOT NULL,
             author TEXT NOT NULL,
-            asin TEXT,
             url TEXT,
             image_url TEXT,
             last_annotated_date TEXT,
@@ -405,13 +399,12 @@ def init_schema(conn: sqlite3.Connection) -> None:
     # Create indexes
     conn.execute("CREATE INDEX IF NOT EXISTS idx_books_author ON books(author)")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_books_title ON books(title)")
-    conn.execute("CREATE INDEX IF NOT EXISTS idx_books_asin ON books(asin)")
     
     # Create highlights table
     conn.execute("""
         CREATE TABLE IF NOT EXISTS highlights (
             id TEXT PRIMARY KEY,
-            book_id TEXT NOT NULL,
+            book_asin TEXT NOT NULL,
             text TEXT NOT NULL,
             location TEXT,
             page TEXT,
@@ -419,12 +412,12 @@ def init_schema(conn: sqlite3.Connection) -> None:
             color TEXT,
             created_date TEXT,
             created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (book_id) REFERENCES books(id) ON DELETE CASCADE
+            FOREIGN KEY (book_asin) REFERENCES books(asin) ON DELETE CASCADE
         )
     """)
     
     # Create indexes
-    conn.execute("CREATE INDEX IF NOT EXISTS idx_highlights_book_id ON highlights(book_id)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_highlights_book_asin ON highlights(book_asin)")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_highlights_color ON highlights(color)")
     
     # Create session table
@@ -456,23 +449,21 @@ def upsert_book(conn: sqlite3.Connection, book: Book) -> None:
     
     conn.execute("""
         INSERT INTO books (
-            id, title, author, asin, url, image_url, 
+            asin, title, author, url, image_url, 
             last_annotated_date, updated_at
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-        ON CONFLICT(id) DO UPDATE SET
+        VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        ON CONFLICT(asin) DO UPDATE SET
             title = excluded.title,
             author = excluded.author,
-            asin = excluded.asin,
             url = excluded.url,
             image_url = excluded.image_url,
             last_annotated_date = excluded.last_annotated_date,
             updated_at = CURRENT_TIMESTAMP
     """, (
-        book.id,
+        book.asin,
         book.title,
         book.author,
-        book.asin,
         book.url,
         book.image_url,
         book.last_annotated_date.isoformat() if book.last_annotated_date else None
@@ -489,13 +480,13 @@ def insert_highlights(conn: sqlite3.Connection, highlights: list[Highlight]) -> 
     
     conn.executemany("""
         INSERT OR IGNORE INTO highlights (
-            id, book_id, text, location, page, note, color, created_date
+            id, book_asin, text, location, page, note, color, created_date
         )
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     """, [
         (
             h.id,
-            h.book_id,
+            h.book_asin,
             h.text,
             h.location,
             h.page,
@@ -533,10 +524,11 @@ Always enable foreign key constraints when opening the database to ensure refere
 
 Before inserting data, validate:
 
-1. **Book ID**: Must be valid Fletcher-16 hash
-2. **Highlight Color**: Must be one of: yellow, blue, pink, orange, or null
-3. **Dates**: Must be valid ISO 8601 format
-4. **Foreign Keys**: Book must exist before inserting highlights
+1. **Book ASIN**: Must be valid 10-character alphanumeric identifier
+2. **Highlight ID**: Must be valid Fletcher-16 hash (4-character hex)
+3. **Highlight Color**: Must be one of: yellow, blue, pink, orange, or null
+4. **Dates**: Must be valid ISO 8601 format
+5. **Foreign Keys**: Book must exist before inserting highlights
 
 ---
 
@@ -548,8 +540,7 @@ Indexes are created on frequently queried columns:
 
 - `books.author` - For filtering by author
 - `books.title` - For searching by title
-- `books.asin` - For lookup by ASIN
-- `highlights.book_id` - For joining with books
+- `highlights.book_asin` - For joining with books
 - `highlights.color` - For filtering by color
 
 ### Query Optimization
@@ -658,10 +649,10 @@ Always use parameterized queries:
 
 ```python
 # Good - parameterized
-conn.execute("SELECT * FROM books WHERE id = ?", (book_id,))
+conn.execute("SELECT * FROM books WHERE asin = ?", (asin,))
 
 # Bad - vulnerable to SQL injection
-conn.execute(f"SELECT * FROM books WHERE id = '{book_id}'")
+conn.execute(f"SELECT * FROM books WHERE asin = '{asin}'")
 ```
 
 ---
@@ -678,7 +669,7 @@ conn.execute(f"SELECT * FROM books WHERE id = '{book_id}'")
 
 ```python
 # Check if book exists
-cursor = conn.execute("SELECT id FROM books WHERE id = ?", (book_id,))
+cursor = conn.execute("SELECT asin FROM books WHERE asin = ?", (book_asin,))
 if cursor.fetchone() is None:
     # Insert book first
     insert_book(conn, book)
@@ -715,13 +706,17 @@ conn.execute("VACUUM")
 
 ### Fletcher-16 Implementation
 
+Fletcher-16 is used for generating highlight IDs (not book IDs, which use ASIN).
+
 ```python
 def fletcher16(text: str) -> str:
     """
     Generate Fletcher-16 checksum for text.
     
+    Used for highlight IDs. Books are identified by ASIN.
+    
     Args:
-        text: Input text to hash
+        text: Input text to hash (highlight text)
         
     Returns:
         4-character hexadecimal string
@@ -737,9 +732,9 @@ def fletcher16(text: str) -> str:
     return f"{checksum:04x}"
 
 
-# Examples
-assert fletcher16("Atomic Habits") == "3a7f"
-assert fletcher16("The Pragmatic Programmer") == "8b2c"
+# Examples for highlight IDs
+assert fletcher16("You do not rise to the level of your goals") == "9f2e"
+assert fletcher16("Habits are the compound interest of self-improvement") == "a3c1"
 ```
 
 ### Date Format Utilities

@@ -39,10 +39,9 @@ class ExportFormat(Enum):
 class Book:
     """Represents a Kindle book."""
 
-    id: str
+    asin: str
     title: str
     author: str
-    asin: str | None = None
     url: str | None = None
     image_url: str | None = None
     last_annotated_date: datetime | None = None
@@ -55,7 +54,7 @@ class Highlight:
     """Represents a Kindle highlight."""
 
     id: str
-    book_id: str
+    book_asin: str
     text: str
     location: str | None = None
     page: str | None = None
