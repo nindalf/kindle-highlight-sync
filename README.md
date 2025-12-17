@@ -37,19 +37,6 @@ uv sync
 uv run kindle-sync --version
 ```
 
-### Using pip
-
-```bash
-# Clone the repository
-git clone <repo-url>
-cd kindle-highlights-sync
-
-# Install
-pip install -e .
-
-# Verify installation
-kindle-sync --version
-```
 
 ## Quick Start
 
