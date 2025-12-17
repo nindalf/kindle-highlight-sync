@@ -316,7 +316,20 @@ class DatabaseManager:
         Args:
             timestamp: Sync timestamp
         """
-        self.save_session("last_sync", timestamp.isoformat())
+        self.connect()
+        assert self.conn is not None
+
+        self.conn.execute(
+            """
+            INSERT INTO sync_metadata (key, value, updated_at)
+            VALUES (?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(key) DO UPDATE SET
+                value = excluded.value,
+                updated_at = CURRENT_TIMESTAMP
+            """,
+            ("last_sync", timestamp.isoformat()),
+        )
+        self.conn.commit()
 
     # Highlight operations
     def insert_highlight(self, highlight: Highlight) -> None:

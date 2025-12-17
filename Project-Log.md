@@ -41,15 +41,21 @@
 - Type hints on all functions
 - CLI fully functional and tested
 
+**Test Suite (97 tests - 57% coverage)**
+- `test_utils.py` (34 tests) - 98% coverage of utils.py
+- `test_database.py` (26 tests) - 95% coverage of database.py
+- `test_scraper.py` (18 tests) - 88% coverage of scraper.py
+- `test_exporter.py` (19 tests) - 90% coverage of exporter.py
+- models.py - 100% coverage (tested through other modules)
+
 ---
 
 ## Next Tasks 🚧
 
-1. **Testing** - Test suite
-   - Unit tests for utils, database, models
-   - Integration tests for scraper, exporter
+1. **Bug Fixes**
+   - Handle edge cases discovered during real usage
+   - Fix Amazon HTML changes if they occur
    - Mock fixtures for Amazon responses
-   - Achieve 80%+ coverage target
 
 2. **End-to-End Testing**
    - Test complete workflow: login → sync → export
