@@ -1,0 +1,36 @@
+# {{ book.title }}
+
+**Author:** {{ book.author }}
+**ASIN:** {{ book.asin }}
+{% if book.last_annotated_date %}
+**Last Annotated:** {{ book.last_annotated_date.strftime('%Y-%m-%d') }}
+{% endif %}
+{% if book.url %}
+**Amazon Link:** [View on Amazon]({{ book.url }})
+{% endif %}
+
+---
+
+## Highlights
+
+{% for highlight in highlights %}
+### {% if highlight.location %}Location {{ highlight.location }}{% endif %}{% if highlight.page %} (Page {{ highlight.page }}){% endif %}
+
+> {{ highlight.text }}
+
+{% if highlight.note %}
+**Note:** {{ highlight.note }}
+{% endif %}
+{% if highlight.color %}
+*Color: {{ highlight.color.value }}*
+{% endif %}
+{% if highlight.created_date %}
+*Date: {{ highlight.created_date.strftime('%Y-%m-%d') }}*
+{% endif %}
+
+---
+
+{% endfor %}
+
+**Total Highlights:** {{ total_highlights }}
+**Exported:** {{ export_date }}

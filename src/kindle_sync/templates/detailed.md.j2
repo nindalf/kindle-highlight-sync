@@ -1,0 +1,43 @@
+# {{ book.title }}
+
+## Book Information
+
+| Field | Value |
+|-------|-------|
+| **Title** | {{ book.title }} |
+| **Author** | {{ book.author }} |
+| **ASIN** | {{ book.asin }} |
+{% if book.last_annotated_date %}
+| **Last Annotated** | {{ book.last_annotated_date.strftime('%B %d, %Y') }} |
+{% endif %}
+{% if book.url %}
+| **Amazon Link** | [View on Amazon]({{ book.url }}) |
+{% endif %}
+| **Total Highlights** | {{ total_highlights }} |
+| **Export Date** | {{ export_date }} |
+
+---
+
+## All Highlights
+
+{% for highlight in highlights %}
+### Highlight {{ loop.index }}
+
+**Location:** {% if highlight.location %}{{ highlight.location }}{% else %}—{% endif %}
+**Page:** {% if highlight.page %}{{ highlight.page }}{% else %}—{% endif %}
+**Color:** {% if highlight.color %}{{ highlight.color.value }}{% else %}—{% endif %}
+**Date:** {% if highlight.created_date %}{{ highlight.created_date.strftime('%Y-%m-%d') }}{% else %}—{% endif %}
+
+> {{ highlight.text }}
+
+{% if highlight.note %}
+#### Personal Note
+
+{{ highlight.note }}
+{% endif %}
+
+---
+
+{% endfor %}
+
+*Exported {{ total_highlights }} highlight(s) on {{ export_date }}*

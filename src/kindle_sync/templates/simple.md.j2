@@ -1,0 +1,11 @@
+# {{ book.title }}
+
+**{{ book.author }}**
+
+{% for highlight in highlights %}
+- {{ highlight.text }}
+{% if highlight.note %}
+  > Note: {{ highlight.note }}
+{% endif %}
+
+{% endfor %}
