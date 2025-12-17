@@ -384,7 +384,7 @@ def web(ctx: click.Context, host: str, port: int, debug: bool) -> None:
     db_path = ctx.obj["db_path"]
     app = create_app(db_path)
 
-    console.print(f"[bold]Starting web server...[/bold]")
+    console.print("[bold]Starting web server...[/bold]")
     console.print(f"Open your browser to: [cyan]http://{host}:{port}[/cyan]")
     console.print("Press [red]Ctrl+C[/red] to stop\n")
 

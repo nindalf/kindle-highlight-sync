@@ -8,7 +8,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from kindle_sync.exporter import ExportError, Exporter
+from kindle_sync.exporter import Exporter, ExportError
 from kindle_sync.models import Book, ExportFormat, Highlight, HighlightColor
 
 

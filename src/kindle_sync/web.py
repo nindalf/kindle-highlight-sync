@@ -3,7 +3,7 @@
 from datetime import datetime
 from pathlib import Path
 
-from flask import Flask, render_template, abort, g, request
+from flask import Flask, abort, g, render_template, request
 
 from kindle_sync.database import DatabaseManager
 from kindle_sync.models import HighlightColor
