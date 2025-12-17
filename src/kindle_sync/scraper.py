@@ -154,11 +154,13 @@ class KindleScraper:
 
         content_limit_input = soup.select_one(".kp-notebook-content-limit-state")
         if content_limit_input:
-            next_content_limit_state = content_limit_input.get("value", "")
+            value = content_limit_input.get("value")
+            next_content_limit_state = str(value) if value is not None else ""
 
         token_input = soup.select_one(".kp-notebook-annotations-next-page-start")
         if token_input:
-            next_token = token_input.get("value", "")
+            value = token_input.get("value")
+            next_token = str(value) if value is not None else ""
 
         return highlights, next_content_limit_state, next_token
 

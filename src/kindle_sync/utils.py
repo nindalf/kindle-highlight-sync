@@ -135,7 +135,7 @@ def extract_author_last_name(author: str) -> str:
 
 def retry(
     max_attempts: int = 3,
-    delay: int = 2,
+    delay: float = 2.0,
     backoff: int = 2,
     exceptions: tuple[type[Exception], ...] = (Exception,),
 ) -> Callable[[Callable[..., T]], Callable[..., T]]:

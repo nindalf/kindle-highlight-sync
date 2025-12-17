@@ -74,7 +74,7 @@ class Config:
     # Scraping settings
     REQUEST_TIMEOUT: int = 30
     MAX_RETRIES: int = 3
-    RETRY_DELAY: int = 2
+    RETRY_DELAY: float = 2.0
     RETRY_BACKOFF: int = 2
 
     # User agent
