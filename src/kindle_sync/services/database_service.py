@@ -46,7 +46,21 @@ class DatabaseManager:
                 image_url TEXT,
                 last_annotated_date TEXT,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                purchase_date TEXT,
+                status TEXT,
+                format TEXT,
+                notes TEXT,
+                start_date TEXT,
+                end_date TEXT,
+                reading_time TEXT,
+                genres TEXT,
+                shop_link TEXT,
+                isbn TEXT,
+                classification TEXT,
+                goodreads_link TEXT,
+                price_gbp TEXT,
+                price_inr TEXT
             )
         """)
 
@@ -95,6 +109,31 @@ class DatabaseManager:
             )
         """)
 
+        # Migrations for existing databases
+        # Add extended metadata columns to books table if they don't exist
+        extended_columns = [
+            "purchase_date TEXT",
+            "status TEXT",
+            "format TEXT",
+            "notes TEXT",
+            "start_date TEXT",
+            "end_date TEXT",
+            "reading_time TEXT",
+            "genres TEXT",
+            "shop_link TEXT",
+            "isbn TEXT",
+            "classification TEXT",
+            "goodreads_link TEXT",
+            "price_gbp TEXT",
+            "price_inr TEXT",
+        ]
+        for column_def in extended_columns:
+            try:
+                self.conn.execute(f"ALTER TABLE books ADD COLUMN {column_def}")
+            except sqlite3.OperationalError:
+                # Column already exists
+                pass
+
         self.conn.commit()
 
     def save_session(self, key: str, value: str) -> None:
@@ -134,15 +173,33 @@ class DatabaseManager:
                 """
                 INSERT INTO books (
                     asin, title, author, url, image_url,
-                    last_annotated_date, updated_at
+                    last_annotated_date, updated_at,
+                    purchase_date, status, format, notes,
+                    start_date, end_date, reading_time, genres,
+                    shop_link, isbn, classification, goodreads_link,
+                    price_gbp, price_inr
                 )
-                VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(asin) DO UPDATE SET
                     title = excluded.title,
                     author = excluded.author,
                     url = excluded.url,
                     image_url = excluded.image_url,
                     last_annotated_date = excluded.last_annotated_date,
+                    purchase_date = excluded.purchase_date,
+                    status = excluded.status,
+                    format = excluded.format,
+                    notes = excluded.notes,
+                    start_date = excluded.start_date,
+                    end_date = excluded.end_date,
+                    reading_time = excluded.reading_time,
+                    genres = excluded.genres,
+                    shop_link = excluded.shop_link,
+                    isbn = excluded.isbn,
+                    classification = excluded.classification,
+                    goodreads_link = excluded.goodreads_link,
+                    price_gbp = excluded.price_gbp,
+                    price_inr = excluded.price_inr,
                     updated_at = CURRENT_TIMESTAMP
                 """,
                 (
@@ -152,6 +209,20 @@ class DatabaseManager:
                     book.url,
                     book.image_url,
                     book.last_annotated_date.isoformat() if book.last_annotated_date else None,
+                    book.purchase_date.isoformat() if book.purchase_date else None,
+                    book.status,
+                    book.format,
+                    book.notes,
+                    book.start_date.isoformat() if book.start_date else None,
+                    book.end_date.isoformat() if book.end_date else None,
+                    book.reading_time,
+                    book.genres,
+                    book.shop_link,
+                    book.isbn,
+                    book.classification,
+                    book.goodreads_link,
+                    book.price_gbp,
+                    book.price_inr,
                 ),
             )
             self.conn.commit()
@@ -164,7 +235,11 @@ class DatabaseManager:
         cursor = self.conn.execute(
             """
             SELECT asin, title, author, url, image_url, last_annotated_date,
-                   created_at, updated_at
+                   created_at, updated_at,
+                   purchase_date, status, format, notes,
+                   start_date, end_date, reading_time, genres,
+                   shop_link, isbn, classification, goodreads_link,
+                   price_gbp, price_inr
             FROM books WHERE asin = ?
             """,
             (asin,),
@@ -182,6 +257,20 @@ class DatabaseManager:
             last_annotated_date=datetime.fromisoformat(row[5]) if row[5] else None,
             created_at=datetime.fromisoformat(row[6]) if row[6] else None,
             updated_at=datetime.fromisoformat(row[7]) if row[7] else None,
+            purchase_date=datetime.fromisoformat(row[8]) if row[8] else None,
+            status=row[9],
+            format=row[10],
+            notes=row[11],
+            start_date=datetime.fromisoformat(row[12]) if row[12] else None,
+            end_date=datetime.fromisoformat(row[13]) if row[13] else None,
+            reading_time=row[14],
+            genres=row[15],
+            shop_link=row[16],
+            isbn=row[17],
+            classification=row[18],
+            goodreads_link=row[19],
+            price_gbp=row[20],
+            price_inr=row[21],
         )
 
     def get_all_books(self, sort_by: str = "title") -> list[Book]:
@@ -190,7 +279,11 @@ class DatabaseManager:
         cursor = self.conn.execute(
             """
             SELECT asin, title, author, url, image_url, last_annotated_date,
-                   created_at, updated_at
+                   created_at, updated_at,
+                   purchase_date, status, format, notes,
+                   start_date, end_date, reading_time, genres,
+                   shop_link, isbn, classification, goodreads_link,
+                   price_gbp, price_inr
             FROM books
             ORDER BY title
             """
@@ -206,6 +299,20 @@ class DatabaseManager:
                 last_annotated_date=datetime.fromisoformat(row[5]) if row[5] else None,
                 created_at=datetime.fromisoformat(row[6]) if row[6] else None,
                 updated_at=datetime.fromisoformat(row[7]) if row[7] else None,
+                purchase_date=datetime.fromisoformat(row[8]) if row[8] else None,
+                status=row[9],
+                format=row[10],
+                notes=row[11],
+                start_date=datetime.fromisoformat(row[12]) if row[12] else None,
+                end_date=datetime.fromisoformat(row[13]) if row[13] else None,
+                reading_time=row[14],
+                genres=row[15],
+                shop_link=row[16],
+                isbn=row[17],
+                classification=row[18],
+                goodreads_link=row[19],
+                price_gbp=row[20],
+                price_inr=row[21],
             )
             for row in cursor.fetchall()
         ]
@@ -222,6 +329,48 @@ class DatabaseManager:
         assert self.conn is not None
         cursor = self.conn.execute("SELECT 1 FROM books WHERE asin = ?", (asin,))
         return cursor.fetchone() is not None
+
+    def update_book_metadata(self, asin: str, **kwargs) -> None:
+        """Update specific fields of a book's metadata."""
+        self.connect()
+        assert self.conn is not None
+
+        # Build update query dynamically based on provided fields
+        allowed_fields = {
+            "purchase_date",
+            "status",
+            "format",
+            "notes",
+            "start_date",
+            "end_date",
+            "reading_time",
+            "genres",
+            "shop_link",
+            "isbn",
+            "classification",
+            "goodreads_link",
+            "price_gbp",
+            "price_inr",
+        }
+
+        update_fields = {k: v for k, v in kwargs.items() if k in allowed_fields}
+        if not update_fields:
+            return
+
+        # Convert datetime objects to ISO format strings
+        for field in ["purchase_date", "start_date", "end_date"]:
+            if field in update_fields and update_fields[field] is not None:
+                if isinstance(update_fields[field], datetime):
+                    update_fields[field] = update_fields[field].isoformat()
+
+        set_clause = ", ".join(f"{field} = ?" for field in update_fields.keys())
+        query = f"UPDATE books SET {set_clause}, updated_at = CURRENT_TIMESTAMP WHERE asin = ?"
+
+        try:
+            self.conn.execute(query, (*update_fields.values(), asin))
+            self.conn.commit()
+        except sqlite3.Error as e:
+            raise DatabaseError(f"Failed to update book metadata: {e}") from e
 
     def get_last_sync(self) -> datetime | None:
         self.connect()

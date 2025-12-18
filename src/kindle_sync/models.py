@@ -47,6 +47,21 @@ class Book:
     last_annotated_date: datetime | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
+    # Extended metadata fields
+    purchase_date: datetime | None = None
+    status: str | None = None  # Done, Started, Not Started, Abandoned
+    format: str | None = None  # Paperback, eBook, Hardcover, Audiobook
+    notes: str | None = None
+    start_date: datetime | None = None
+    end_date: datetime | None = None
+    reading_time: str | None = None  # Format: "HH:MM"
+    genres: str | None = None  # Comma-separated genres
+    shop_link: str | None = None  # Amazon or other shop link
+    isbn: str | None = None
+    classification: str | None = None  # Dewey decimal classification
+    goodreads_link: str | None = None
+    price_gbp: str | None = None  # Format: "£X.XX"
+    price_inr: str | None = None  # Format: "₹X.XX"
 
 
 @dataclass

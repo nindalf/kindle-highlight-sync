@@ -134,6 +134,20 @@ class Exporter:
                     "last_annotated_date": book.last_annotated_date.isoformat()
                     if book.last_annotated_date
                     else None,
+                    "purchase_date": book.purchase_date.isoformat() if book.purchase_date else None,
+                    "status": book.status,
+                    "format": book.format,
+                    "notes": book.notes,
+                    "start_date": book.start_date.isoformat() if book.start_date else None,
+                    "end_date": book.end_date.isoformat() if book.end_date else None,
+                    "reading_time": book.reading_time,
+                    "genres": book.genres,
+                    "shop_link": book.shop_link,
+                    "isbn": book.isbn,
+                    "classification": book.classification,
+                    "goodreads_link": book.goodreads_link,
+                    "price_gbp": book.price_gbp,
+                    "price_inr": book.price_inr,
                 },
                 "highlights": [
                     {
@@ -209,8 +223,53 @@ class Exporter:
 
 **Author:** {{ book.author }}
 **ASIN:** {{ book.asin }}
+{% if book.isbn %}
+**ISBN:** {{ book.isbn }}
+{% endif %}
 {% if book.last_annotated_date %}
 **Last Annotated:** {{ book.last_annotated_date.strftime('%Y-%m-%d') }}
+{% endif %}
+
+## Book Details
+
+{% if book.status %}
+**Status:** {{ book.status }}
+{% endif %}
+{% if book.format %}
+**Format:** {{ book.format }}
+{% endif %}
+{% if book.purchase_date %}
+**Purchase Date:** {{ book.purchase_date.strftime('%Y-%m-%d') }}
+{% endif %}
+{% if book.start_date %}
+**Start Date:** {{ book.start_date.strftime('%Y-%m-%d') }}
+{% endif %}
+{% if book.end_date %}
+**End Date:** {{ book.end_date.strftime('%Y-%m-%d') }}
+{% endif %}
+{% if book.reading_time %}
+**Reading Time:** {{ book.reading_time }}
+{% endif %}
+{% if book.genres %}
+**Genres:** {{ book.genres }}
+{% endif %}
+{% if book.classification %}
+**Classification:** {{ book.classification }}
+{% endif %}
+{% if book.price_gbp %}
+**Price (GBP):** {{ book.price_gbp }}
+{% endif %}
+{% if book.price_inr %}
+**Price (INR):** {{ book.price_inr }}
+{% endif %}
+{% if book.shop_link %}
+**Shop Link:** {{ book.shop_link }}
+{% endif %}
+{% if book.goodreads_link %}
+**Goodreads:** {{ book.goodreads_link }}
+{% endif %}
+{% if book.notes %}
+**Notes:** {{ book.notes }}
 {% endif %}
 
 ---

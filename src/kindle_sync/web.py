@@ -346,6 +346,29 @@ def create_app(db_path: str | None = None) -> Flask:
                 }
             ), 500
 
+    @app.route("/api/books/<asin>/metadata", methods=["POST"])
+    def api_update_book_metadata(asin: str):
+        """Update book metadata fields."""
+        db = get_db()
+        data = request.get_json() or {}
+
+        try:
+            db.update_book_metadata(asin, **data)
+            return jsonify(
+                {
+                    "success": True,
+                    "message": "Book metadata updated successfully",
+                }
+            )
+        except Exception as e:
+            return jsonify(
+                {
+                    "success": False,
+                    "message": "Failed to update book metadata",
+                    "error": str(e),
+                }
+            ), 500
+
     @app.route("/api/books")
     def api_books():
         """Get all books with highlight counts."""
