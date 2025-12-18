@@ -240,6 +240,8 @@ for book in scraped_books:
 ### Running Tests
 
 ```bash
+uv sync --extra dev
+
 # All tests (115 tests, 62% coverage)
 uv run pytest
 

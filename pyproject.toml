@@ -1,3 +1,7 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [project]
 name = "kindle-highlights-sync"
 version = "0.1.0"
@@ -64,6 +68,9 @@ ignore = [
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/kindle_sync"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
