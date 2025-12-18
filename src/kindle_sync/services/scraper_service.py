@@ -28,7 +28,66 @@ class KindleScraper:
 
     @retry(max_attempts=Config.MAX_RETRIES, delay=Config.RETRY_DELAY, backoff=Config.RETRY_BACKOFF)
     def scrape_books(self) -> list[Book]:
-        """Scrape all books from notebook page."""
+        """Scrape all books using pagination API."""
+        # Try API-based pagination first (more reliable for getting all books)
+        try:
+            return self._scrape_books_via_api()
+        except (ScraperError, requests.RequestException, KeyError) as e:
+            print(f"Warning: API-based scraping failed ({e}), falling back to HTML scraping")
+            # Fall back to HTML scraping if API fails
+            return self._scrape_books_via_html()
+
+    def _scrape_books_via_api(self) -> list[Book]:
+        """Scrape all books using the pagination API."""
+        base_url = self.region_config.kindle_reader_url
+        api_url = f"{base_url}/kindle-library/search"
+
+        books = []
+        pagination_token = 0
+        query_size = 50
+
+        while True:
+            params = {
+                "libraryType": "BOOKS",
+                "paginationToken": str(pagination_token),
+                "sortType": "recency",
+                "querySize": str(query_size),
+            }
+
+            try:
+                response = self.session.get(api_url, params=params, timeout=Config.REQUEST_TIMEOUT)
+                response.raise_for_status()
+                data = response.json()
+            except requests.RequestException as e:
+                exc = ScraperError("Failed to fetch books via API")
+                exc.add_note(f"URL: {api_url}")
+                exc.add_note(f"Pagination token: {pagination_token}")
+                exc.add_note(f"Region: {self.region}")
+                raise exc from e
+
+            # Parse books from API response
+            items = data.get("itemsList", [])
+            if not items:
+                break
+
+            for item in items:
+                try:
+                    book = self._parse_book_from_api(item)
+                    if book:
+                        books.append(book)
+                except Exception as e:
+                    print(f"Warning: Failed to parse book from API: {e}")
+
+            # Check if there are more pages
+            if not data.get("paginationToken"):
+                break
+
+            pagination_token = int(data["paginationToken"])
+
+        return books
+
+    def _scrape_books_via_html(self) -> list[Book]:
+        """Scrape books from HTML notebook page (fallback method)."""
         try:
             response = self.session.get(
                 self.region_config.notebook_url, timeout=Config.REQUEST_TIMEOUT
@@ -112,6 +171,53 @@ class KindleScraper:
                 next_token = str(value)
 
         return highlights, next_content_limit_state, next_token
+
+    def _parse_book_from_api(self, item: dict[str, Any]) -> Book | None:
+        """Parse a book from API JSON response."""
+        # Extract ASIN from the item
+        asin = item.get("asin")
+        if not asin:
+            return None
+
+        # Extract title
+        title = item.get("title", "Unknown Title")
+
+        # Extract authors - API may return as list or string
+        author = "Unknown"
+        authors = item.get("authors", [])
+        if isinstance(authors, list) and authors:
+            author = ", ".join(authors)
+        elif isinstance(authors, str):
+            author = authors
+
+        # Extract image URL
+        image_url = None
+        if "productUrl" in item:
+            image_url = item["productUrl"]
+
+        # Extract last annotated date
+        last_annotated_date = None
+        if "lastAnnotationTime" in item:
+            try:
+                # API might return timestamp in milliseconds
+                timestamp = item["lastAnnotationTime"]
+                if isinstance(timestamp, int | float):
+                    last_annotated_date = datetime.fromtimestamp(timestamp / 1000)
+                elif isinstance(timestamp, str):
+                    last_annotated_date = self._parse_date(timestamp)
+            except Exception:
+                pass
+
+        return Book(
+            asin=asin,
+            title=title,
+            author=author,
+            url=f"https://www.amazon.com/dp/{asin}",
+            image_url=image_url,
+            last_annotated_date=last_annotated_date,
+            created_at=datetime.now(),
+            updated_at=datetime.now(),
+        )
 
     def _parse_book_element(self, element: Any) -> Book:
         """Parse a book element from HTML."""

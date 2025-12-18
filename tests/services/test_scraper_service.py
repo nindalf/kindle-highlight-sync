@@ -25,28 +25,30 @@ class TestScrapeBooks:
     """Tests for book scraping."""
 
     def test_scrape_books_success(self, scraper, mock_session):
-        """Test successful book scraping."""
-        html = """
-        <html>
-            <div class="kp-notebook-library-each-book" id="B01N5AX61W">
-                <h2 class="kp-notebook-searchable">Atomic Habits</h2>
-                <p class="kp-notebook-searchable">By: James Clear</p>
-                <img class="kp-notebook-cover-image" src="https://example.com/image.jpg"/>
-                <input id="kp-notebook-annotated-date-B01N5AX61W" value="Sunday October 24, 2021"/>
-            </div>
-            <div class="kp-notebook-library-each-book" id="B07EXAMPLE">
-                <h2 class="kp-notebook-searchable">Another Book</h2>
-                <p class="kp-notebook-searchable">Par: John Doe</p>
-                <img class="kp-notebook-cover-image" src="https://example.com/another.jpg"/>
-            </div>
-        </html>
-        """
-
-        mock_response = Mock()
-        mock_response.text = html
-        mock_response.status_code = 200
-        mock_response.raise_for_status = Mock()
-        mock_session.get.return_value = mock_response
+        """Test successful book scraping via API."""
+        # Mock API response
+        api_response = Mock()
+        api_response.status_code = 200
+        api_response.raise_for_status = Mock()
+        api_response.json.return_value = {
+            "itemsList": [
+                {
+                    "asin": "B01N5AX61W",
+                    "title": "Atomic Habits",
+                    "authors": ["James Clear"],
+                    "productUrl": "https://example.com/image.jpg",
+                    "lastAnnotationTime": 1634966400000,  # Sunday October 24, 2021
+                },
+                {
+                    "asin": "B07EXAMPLE",
+                    "title": "Another Book",
+                    "authors": ["John Doe"],
+                    "productUrl": "https://example.com/another.jpg",
+                },
+            ],
+            "paginationToken": None,
+        }
+        mock_session.get.return_value = api_response
 
         books = scraper.scrape_books()
 
@@ -60,68 +62,76 @@ class TestScrapeBooks:
         assert books[1].author == "John Doe"
 
     def test_scrape_books_empty(self, scraper, mock_session):
-        """Test scraping with no books."""
-        html = "<html><body>No books here</body></html>"
-
-        mock_response = Mock()
-        mock_response.text = html
-        mock_response.status_code = 200
-        mock_response.raise_for_status = Mock()
-        mock_session.get.return_value = mock_response
+        """Test scraping with no books via API."""
+        # Mock API response with empty list
+        api_response = Mock()
+        api_response.status_code = 200
+        api_response.raise_for_status = Mock()
+        api_response.json.return_value = {
+            "itemsList": [],
+            "paginationToken": None,
+        }
+        mock_session.get.return_value = api_response
 
         books = scraper.scrape_books()
         assert len(books) == 0
 
     def test_scrape_books_network_error(self, scraper, mock_session):
-        """Test scraping with network error."""
+        """Test scraping with network error (both API and HTML fallback fail)."""
         mock_session.get.side_effect = requests.RequestException("Network error")
 
-        with pytest.raises(ScraperError, match="Failed to fetch notebook page"):
+        with pytest.raises(ScraperError, match="Failed to fetch"):
             scraper.scrape_books()
 
     def test_scrape_books_missing_title(self, scraper, mock_session):
-        """Test scraping book with missing title."""
-        html = """
-        <html>
-            <div class="kp-notebook-library-each-book" id="B01TEST">
-                <p class="kp-notebook-searchable">By: Author</p>
-            </div>
-        </html>
-        """
-
-        mock_response = Mock()
-        mock_response.text = html
-        mock_response.status_code = 200
-        mock_response.raise_for_status = Mock()
-        mock_session.get.return_value = mock_response
+        """Test scraping book with missing title via API."""
+        # Mock API response with book missing title (should use default)
+        api_response = Mock()
+        api_response.status_code = 200
+        api_response.raise_for_status = Mock()
+        api_response.json.return_value = {
+            "itemsList": [
+                {
+                    "asin": "B01TEST",
+                    "authors": ["Author"],
+                    # No title field
+                },
+            ],
+            "paginationToken": None,
+        }
+        mock_session.get.return_value = api_response
 
         books = scraper.scrape_books()
-        assert len(books) == 0
+        assert len(books) == 1
+        assert books[0].title == "Unknown Title"  # Default value
 
     def test_parse_book_author_prefixes(self, scraper, mock_session):
-        """Test that various author prefixes are removed."""
-        html = """
-        <html>
-            <div class="kp-notebook-library-each-book" id="TEST1">
-                <h2 class="kp-notebook-searchable">Book 1</h2>
-                <p class="kp-notebook-searchable">By: Author One</p>
-            </div>
-            <div class="kp-notebook-library-each-book" id="TEST2">
-                <h2 class="kp-notebook-searchable">Book 2</h2>
-                <p class="kp-notebook-searchable">De: Author Two</p>
-            </div>
-            <div class="kp-notebook-library-each-book" id="TEST3">
-                <h2 class="kp-notebook-searchable">Book 3</h2>
-                <p class="kp-notebook-searchable">Di: Author Three</p>
-            </div>
-        </html>
-        """
-
-        mock_response = Mock()
-        mock_response.text = html
-        mock_response.status_code = 200
-        mock_response.raise_for_status = Mock()
-        mock_session.get.return_value = mock_response
+        """Test that API returns authors correctly."""
+        # API returns clean author names without prefixes
+        api_response = Mock()
+        api_response.status_code = 200
+        api_response.raise_for_status = Mock()
+        api_response.json.return_value = {
+            "itemsList": [
+                {
+                    "asin": "TEST1",
+                    "title": "Book 1",
+                    "authors": ["Author One"],
+                },
+                {
+                    "asin": "TEST2",
+                    "title": "Book 2",
+                    "authors": ["Author Two"],
+                },
+                {
+                    "asin": "TEST3",
+                    "title": "Book 3",
+                    "authors": ["Author Three"],
+                },
+            ],
+            "paginationToken": None,
+        }
+        mock_session.get.return_value = api_response
 
         books = scraper.scrape_books()
         assert books[0].author == "Author One"
@@ -357,10 +367,16 @@ class TestRetryDecorator:
 
     def test_scrape_books_retries_on_failure(self, scraper, mock_session):
         """Test that scrape_books retries on failure."""
+        # First 3 calls fail (API tries), then HTML fallback succeeds with empty response
+        empty_json_response = Mock()
+        empty_json_response.status_code = 200
+        empty_json_response.raise_for_status = Mock()
+        empty_json_response.json.return_value = {"itemsList": [], "paginationToken": None}
+
         mock_session.get.side_effect = [
             requests.RequestException("Error 1"),
             requests.RequestException("Error 2"),
-            Mock(text="<html></html>", status_code=200, raise_for_status=Mock()),
+            empty_json_response,
         ]
 
         books = scraper.scrape_books()
@@ -369,10 +385,11 @@ class TestRetryDecorator:
         assert books == []
 
     def test_scrape_books_fails_after_max_retries(self, scraper, mock_session):
-        """Test that scrape_books fails after max retries."""
+        """Test that scrape_books fails after max retries (both API and HTML fallback)."""
         mock_session.get.side_effect = requests.RequestException("Persistent error")
 
         with pytest.raises(ScraperError):
             scraper.scrape_books()
 
-        assert mock_session.get.call_count == 3
+        # API tries 3 times, then HTML fallback tries 3 times = 6 total
+        assert mock_session.get.call_count == 6

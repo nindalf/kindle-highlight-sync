@@ -109,31 +109,6 @@ class DatabaseManager:
             )
         """)
 
-        # Migrations for existing databases
-        # Add extended metadata columns to books table if they don't exist
-        extended_columns = [
-            "purchase_date TEXT",
-            "status TEXT",
-            "format TEXT",
-            "notes TEXT",
-            "start_date TEXT",
-            "end_date TEXT",
-            "reading_time TEXT",
-            "genres TEXT",
-            "shop_link TEXT",
-            "isbn TEXT",
-            "classification TEXT",
-            "goodreads_link TEXT",
-            "price_gbp TEXT",
-            "price_inr TEXT",
-        ]
-        for column_def in extended_columns:
-            try:
-                self.conn.execute(f"ALTER TABLE books ADD COLUMN {column_def}")
-            except sqlite3.OperationalError:
-                # Column already exists
-                pass
-
         self.conn.commit()
 
     def save_session(self, key: str, value: str) -> None:
