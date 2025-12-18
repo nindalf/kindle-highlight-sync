@@ -1,5 +1,29 @@
 {% extends "base.html" %} {% block title %}{{ book.title }} - Kindle
-Highlights{% endblock %} {% block content %}
+Highlights{% endblock %} {% block extra_css %}
+<style>
+    .hidden-highlight {
+        opacity: 0.5;
+        background: #f0f0f0 !important;
+    }
+
+    .toggle-visibility-btn {
+        background: #fff;
+        color: #666;
+        border: 1px solid #e0e0e0;
+        padding: 4px 12px;
+        border-radius: 4px;
+        font-size: 11px;
+        cursor: pointer;
+        transition: all 0.2s;
+        font-family: inherit;
+    }
+
+    .toggle-visibility-btn:hover {
+        background: #f5f5f5;
+        border-color: #999;
+    }
+</style>
+{% endblock %} {% block content %}
 <a href="{{ url_for('index') }}" class="back-link">← Back to all books</a>
 
 <div class="book-header">
@@ -15,7 +39,10 @@ Highlights{% endblock %} {% block content %}
 </div>
 
 {% if highlights %} {% for highlight in highlights %}
-<div class="highlight {{ color_class(highlight.color) }}">
+<div
+    class="highlight {{ color_class(highlight.color) }} {% if highlight.is_hidden %}hidden-highlight{% endif %}"
+    id="highlight-{{ highlight.id }}"
+>
     <div class="highlight-text">{{ highlight.text }}</div>
 
     {% if highlight.note %}
@@ -32,6 +59,12 @@ Highlights{% endblock %} {% block content %}
             {% if highlight.created_date %} {{
             format_date(highlight.created_date) }} {% endif %}
         </span>
+        <button
+            class="toggle-visibility-btn"
+            onclick="toggleHighlightVisibility('{{ highlight.id }}', {{ 'true' if highlight.is_hidden else 'false' }})"
+        >
+            {% if highlight.is_hidden %}Show{% else %}Hide{% endif %}
+        </button>
     </div>
 </div>
 {% endfor %} {% else %}
@@ -39,4 +72,48 @@ Highlights{% endblock %} {% block content %}
     <h2>No highlights found</h2>
     <p>Run <code>kindle-sync sync</code> to sync highlights for this book</p>
 </div>
-{% endif %} {% endblock %}
+{% endif %}
+
+<script>
+    async function toggleHighlightVisibility(highlightId, currentlyHidden) {
+        try {
+            const response = await fetch(
+                `/api/highlights/${highlightId}/toggle-visibility`,
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                },
+            );
+
+            const data = await response.json();
+
+            if (data.success) {
+                const highlightDiv = document.getElementById(
+                    `highlight-${highlightId}`,
+                );
+                const button = highlightDiv.querySelector(
+                    ".toggle-visibility-btn",
+                );
+
+                if (data.data.is_hidden) {
+                    highlightDiv.classList.add("hidden-highlight");
+                    button.textContent = "Show";
+                } else {
+                    highlightDiv.classList.remove("hidden-highlight");
+                    button.textContent = "Hide";
+                }
+            } else {
+                alert(
+                    "Failed to toggle highlight visibility: " +
+                        (data.message || data.error),
+                );
+            }
+        } catch (error) {
+            alert("Failed to toggle highlight visibility: " + error.message);
+        }
+    }
+</script>
+
+{% endblock %}

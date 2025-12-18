@@ -72,7 +72,11 @@ class Exporter:
         if not book:
             raise ExportError(f"Book with ASIN {asin} not found")
 
-        book_highlights = BookHighlights(book=book, highlights=self.db.get_highlights(book.asin))
+        # Get all highlights and filter out hidden ones
+        all_highlights = self.db.get_highlights(book.asin)
+        visible_highlights = [h for h in all_highlights if not h.is_hidden]
+
+        book_highlights = BookHighlights(book=book, highlights=visible_highlights)
         output_path = (
             Path(output_path).expanduser() if isinstance(output_path, str) else output_path
         )

@@ -324,6 +324,28 @@ def create_app(db_path: str | None = None) -> Flask:
             }
         )
 
+    @app.route("/api/highlights/<highlight_id>/toggle-visibility", methods=["POST"])
+    def api_toggle_highlight_visibility(highlight_id: str):
+        """Toggle the visibility of a highlight."""
+        db = get_db()
+        try:
+            is_hidden = db.toggle_highlight_visibility(highlight_id)
+            return jsonify(
+                {
+                    "success": True,
+                    "message": "Highlight hidden" if is_hidden else "Highlight shown",
+                    "data": {"is_hidden": is_hidden},
+                }
+            )
+        except Exception as e:
+            return jsonify(
+                {
+                    "success": False,
+                    "message": "Failed to toggle highlight visibility",
+                    "error": str(e),
+                }
+            ), 500
+
     @app.route("/api/books")
     def api_books():
         """Get all books with highlight counts."""

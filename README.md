@@ -435,5 +435,5 @@ MIT License - see LICENSE file
 - [ ] Add an option in the web interface to edit details to the book.
 - [ ] Add a pre-commit hook that runs `ruff` and `ty`
 - [ ] Explore packaging this project into an app that could be launched on a mac, without needing to be launched from the command line.
-- [ ] Option to hide a highlight
+- [x] Option to hide a highlight
 - [ ] Export in an Astro friendly format.

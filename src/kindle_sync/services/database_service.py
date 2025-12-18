@@ -66,6 +66,7 @@ class DatabaseManager:
                 color TEXT,
                 created_date TEXT,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                is_hidden INTEGER NOT NULL DEFAULT 0,
                 FOREIGN KEY (book_asin) REFERENCES books(asin) ON DELETE CASCADE
             )
         """)
@@ -289,7 +290,7 @@ class DatabaseManager:
         cursor = self.conn.execute(
             """
             SELECT id, book_asin, text, location, page, note, color,
-                   created_date, created_at
+                   created_date, created_at, is_hidden
             FROM highlights
             WHERE book_asin = ?
             ORDER BY
@@ -313,6 +314,7 @@ class DatabaseManager:
                 color=HighlightColor(row[6]) if row[6] else None,
                 created_date=datetime.fromisoformat(row[7]) if row[7] else None,
                 created_at=datetime.fromisoformat(row[8]) if row[8] else None,
+                is_hidden=bool(row[9]),
             )
             for row in cursor.fetchall()
         ]
@@ -356,7 +358,7 @@ class DatabaseManager:
         sql = """
             SELECT
                 h.id, h.book_asin, h.text, h.location, h.page, h.note,
-                h.color, h.created_date, h.created_at,
+                h.color, h.created_date, h.created_at, h.is_hidden,
                 b.asin, b.title, b.author, b.url, b.image_url,
                 b.last_annotated_date, b.created_at, b.updated_at
             FROM highlights h
@@ -384,16 +386,17 @@ class DatabaseManager:
                     color=HighlightColor(row[6]) if row[6] else None,
                     created_date=datetime.fromisoformat(row[7]) if row[7] else None,
                     created_at=datetime.fromisoformat(row[8]) if row[8] else None,
+                    is_hidden=bool(row[9]),
                 ),
                 book=Book(
-                    asin=row[9],
-                    title=row[10],
-                    author=row[11],
-                    url=row[12],
-                    image_url=row[13],
-                    last_annotated_date=datetime.fromisoformat(row[14]) if row[14] else None,
-                    created_at=datetime.fromisoformat(row[15]) if row[15] else None,
-                    updated_at=datetime.fromisoformat(row[16]) if row[16] else None,
+                    asin=row[10],
+                    title=row[11],
+                    author=row[12],
+                    url=row[13],
+                    image_url=row[14],
+                    last_annotated_date=datetime.fromisoformat(row[15]) if row[15] else None,
+                    created_at=datetime.fromisoformat(row[16]) if row[16] else None,
+                    updated_at=datetime.fromisoformat(row[17]) if row[17] else None,
                 ),
             )
             for row in cursor.fetchall()
@@ -452,3 +455,29 @@ class DatabaseManager:
             ("export_directory", directory),
         )
         self.conn.commit()
+
+    def toggle_highlight_visibility(self, highlight_id: str) -> bool:
+        """Toggle the visibility of a highlight. Returns the new is_hidden state."""
+        self.connect()
+        assert self.conn is not None
+        try:
+            # Get current state
+            cursor = self.conn.execute(
+                "SELECT is_hidden FROM highlights WHERE id = ?", (highlight_id,)
+            )
+            row = cursor.fetchone()
+            if row is None:
+                raise DatabaseError(f"Highlight {highlight_id} not found")
+
+            current_state = bool(row[0])
+            new_state = not current_state
+
+            # Update state
+            self.conn.execute(
+                "UPDATE highlights SET is_hidden = ? WHERE id = ?",
+                (int(new_state), highlight_id),
+            )
+            self.conn.commit()
+            return new_state
+        except sqlite3.Error as e:
+            raise DatabaseError(f"Failed to toggle highlight visibility: {e}") from e

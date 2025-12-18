@@ -62,6 +62,7 @@ class Highlight:
     color: HighlightColor | None = None
     created_date: datetime | None = None
     created_at: datetime | None = None
+    is_hidden: bool = False
 
 
 @dataclass
