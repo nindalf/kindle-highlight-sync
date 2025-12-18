@@ -76,8 +76,13 @@ class TestScrapeBooks:
         books = scraper.scrape_books()
         assert len(books) == 0
 
-    def test_scrape_books_network_error(self, scraper, mock_session):
+    def test_scrape_books_network_error(self, scraper, mock_session, monkeypatch):
         """Test scraping with network error (both API and HTML fallback fail)."""
+        # Speed up test by mocking time.sleep
+        import time
+
+        monkeypatch.setattr(time, "sleep", lambda x: None)
+
         mock_session.get.side_effect = requests.RequestException("Network error")
 
         with pytest.raises(ScraperError, match="Failed to fetch"):
@@ -318,8 +323,13 @@ class TestScrapeHighlights:
         assert len(highlights) == 1
         assert "Line 1\nLine 2\nLine 3" in highlights[0].note
 
-    def test_scrape_highlights_network_error(self, scraper, mock_session):
+    def test_scrape_highlights_network_error(self, scraper, mock_session, monkeypatch):
         """Test highlight scraping with network error."""
+        # Speed up test by mocking time.sleep
+        import time
+
+        monkeypatch.setattr(time, "sleep", lambda x: None)
+
         mock_session.get.side_effect = requests.RequestException("Network error")
 
         with pytest.raises(ScraperError, match="Failed to fetch highlights page"):
@@ -365,8 +375,13 @@ class TestDateParsing:
 class TestRetryDecorator:
     """Tests for retry functionality in scraper."""
 
-    def test_scrape_books_retries_on_failure(self, scraper, mock_session):
+    def test_scrape_books_retries_on_failure(self, scraper, mock_session, monkeypatch):
         """Test that scrape_books retries on failure."""
+        # Speed up test by mocking time.sleep
+        import time
+
+        monkeypatch.setattr(time, "sleep", lambda x: None)
+
         # First 3 calls fail (API tries), then HTML fallback succeeds with empty response
         empty_json_response = Mock()
         empty_json_response.status_code = 200
@@ -384,8 +399,13 @@ class TestRetryDecorator:
         assert mock_session.get.call_count == 3
         assert books == []
 
-    def test_scrape_books_fails_after_max_retries(self, scraper, mock_session):
+    def test_scrape_books_fails_after_max_retries(self, scraper, mock_session, monkeypatch):
         """Test that scrape_books fails after max retries (both API and HTML fallback)."""
+        # Speed up test by mocking time.sleep
+        import time
+
+        monkeypatch.setattr(time, "sleep", lambda x: None)
+
         mock_session.get.side_effect = requests.RequestException("Persistent error")
 
         with pytest.raises(ScraperError):
