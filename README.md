@@ -431,7 +431,9 @@ MIT License - see LICENSE file
 - [x] Consider cli.py and web.py holistically. They both need to call some of the same code. For example, I want to be able to login, sync and export from within the web interface. What's the best way to share this functionality.
 - [x] Export location.
 - [x] Add more details to the book: Purchase date,Book,Author,Status,Format,Start date,End date,Reading time,Genres,Amazon link,ISBN,Classification,Goodreads link,price in GBP, price in INR
-- [ ] Fetch some of these details from Goodreads.
+- [x] Fetch ISBN from amazon.
+- [ ] Add ability to review a book
+- [ ] Use ISBN to fetch genres from Goodreads.
 - [ ] Add an option in the web interface to edit details to the book.
 - [ ] Add a pre-commit hook that runs `ruff` and `ty`
 - [ ] Explore packaging this project into an app that could be launched on a mac, without needing to be launched from the command line.

@@ -10,6 +10,29 @@ from kindle_sync.models import AmazonRegion, HighlightColor
 from kindle_sync.services.scraper_service import KindleScraper, ScraperError
 
 
+def _mock_isbn_response(isbn: str | None = None) -> Mock:
+    """Create a mock response for ISBN product page requests."""
+    response = Mock()
+    response.status_code = 200
+    response.raise_for_status = Mock()
+    if isbn:
+        # Mock HTML with ISBN in feature div
+        response.text = f"""
+        <html>
+            <div id="printEditionIsbn_feature_div">
+                <div class="a-row">
+                    <span></span>
+                    <span>{isbn}</span>
+                </div>
+            </div>
+        </html>
+        """
+    else:
+        # Mock HTML without ISBN
+        response.text = "<html><body></body></html>"
+    return response
+
+
 class TestScraperInit:
     """Tests for scraper initialization."""
 
@@ -48,7 +71,13 @@ class TestScrapeBooks:
             ],
             "paginationToken": None,
         }
-        mock_session.get.return_value = api_response
+
+        # Mock ISBN responses for each book
+        isbn_response1 = _mock_isbn_response("9780735211292")
+        isbn_response2 = _mock_isbn_response("9781234567890")
+
+        # Return API response first, then ISBN responses for each book
+        mock_session.get.side_effect = [api_response, isbn_response1, isbn_response2]
 
         books = scraper.scrape_books()
 
@@ -57,9 +86,11 @@ class TestScrapeBooks:
         assert books[0].title == "Atomic Habits"
         assert books[0].author == "James Clear"
         assert books[0].image_url == "https://example.com/image.jpg"
+        assert books[0].isbn == "9780735211292"
         assert books[1].asin == "B07EXAMPLE"
         assert books[1].title == "Another Book"
         assert books[1].author == "John Doe"
+        assert books[1].isbn == "9781234567890"
 
     def test_scrape_books_empty(self, scraper, mock_session):
         """Test scraping with no books via API."""
@@ -104,7 +135,10 @@ class TestScrapeBooks:
             ],
             "paginationToken": None,
         }
-        mock_session.get.return_value = api_response
+
+        # Mock ISBN response
+        isbn_response = _mock_isbn_response()
+        mock_session.get.side_effect = [api_response, isbn_response]
 
         books = scraper.scrape_books()
         assert len(books) == 1
@@ -136,7 +170,10 @@ class TestScrapeBooks:
             ],
             "paginationToken": None,
         }
-        mock_session.get.return_value = api_response
+
+        # Mock ISBN responses for each book
+        isbn_responses = [_mock_isbn_response() for _ in range(3)]
+        mock_session.get.side_effect = [api_response] + isbn_responses
 
         books = scraper.scrape_books()
         assert books[0].author == "Author One"

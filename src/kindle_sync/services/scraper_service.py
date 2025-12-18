@@ -208,6 +208,10 @@ class KindleScraper:
             except Exception:
                 pass
 
+        # Extract ISBN from product page
+        isbn = self._scrape_isbn(asin)
+        print(title, isbn)
+
         return Book(
             asin=asin,
             title=title,
@@ -215,6 +219,7 @@ class KindleScraper:
             url=f"https://www.amazon.com/dp/{asin}",
             image_url=image_url,
             last_annotated_date=last_annotated_date,
+            isbn=isbn,
             created_at=datetime.now(),
             updated_at=datetime.now(),
         )
@@ -247,6 +252,10 @@ class KindleScraper:
             if date_text := date_input.get("value", ""):
                 last_annotated_date = self._parse_date(date_text)
 
+        # Extract ISBN from product page
+        isbn = self._scrape_isbn(asin)
+        print(title, isbn)
+
         return Book(
             asin=asin,
             title=title,
@@ -254,6 +263,7 @@ class KindleScraper:
             url=f"https://www.amazon.com/dp/{asin}",
             image_url=image_url,
             last_annotated_date=last_annotated_date,
+            isbn=isbn,
             created_at=datetime.now(),
             updated_at=datetime.now(),
         )
@@ -299,6 +309,48 @@ class KindleScraper:
             created_date=None,
             created_at=datetime.now(),
         )
+
+    def _scrape_isbn(self, asin: str) -> str | None:
+        """Scrape ISBN from Amazon product page.
+
+        Uses two fallback methods:
+        1. Extract from popover data attribute
+        2. Extract from ISBN feature div
+        """
+        # Construct product page URL based on region
+        product_url = f"https://{self.region_config.hostname}/dp/{asin}"
+
+        try:
+            response = self.session.get(product_url, timeout=Config.REQUEST_TIMEOUT)
+            response.raise_for_status()
+        except requests.RequestException as e:
+            print(f"Warning: Failed to fetch product page for ISBN (ASIN: {asin}): {e}")
+            return None
+
+        soup = BeautifulSoup(response.text, "html.parser")
+
+        # Method 1: Try to extract from popover data
+        popover_element = soup.select_one(
+            "#rich_product_information ol.a-carousel span[data-action=a-popover]"
+        )
+        if popover_element:
+            popover_data = popover_element.get("data-a-popover")
+            if popover_data:
+                # Look for ISBN in the popover data
+                isbn_match = re.search(r"\bISBN\s+(\w+)", str(popover_data))
+                if isbn_match:
+                    return isbn_match.group(1)
+
+        # Method 2: Try to extract from ISBN feature div
+        isbn_element = soup.select_one(
+            "#printEditionIsbn_feature_div .a-row:first-child span:nth-child(2)"
+        )
+        if isbn_element:
+            isbn_text = isbn_element.get_text(strip=True)
+            if isbn_text:
+                return isbn_text
+
+        return None
 
     def _parse_date(self, date_text: str) -> datetime | None:
         """Parse date string based on region."""
