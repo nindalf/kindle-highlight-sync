@@ -263,7 +263,7 @@ uv run ruff check .
 uv run ruff check --fix .
 
 # Type checking
-uv run mypy src/kindle_sync
+uvx ty check
 ```
 
 ## Architecture

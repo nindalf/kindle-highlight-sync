@@ -35,7 +35,6 @@ dev = [
     "ruff>=0.1.0",
     "pytest>=7.4.0",
     "pytest-cov>=4.1.0",
-    "mypy>=1.7.0",
 ]
 
 [project.scripts]
@@ -65,13 +64,6 @@ ignore = [
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"
-
-[tool.mypy]
-python_version = "3.14"
-warn_return_any = true
-warn_unused_configs = true
-disallow_untyped_defs = true
-ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
