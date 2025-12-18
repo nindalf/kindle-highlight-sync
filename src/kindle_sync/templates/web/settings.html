@@ -1,8 +1,5 @@
-{% extends "base.html" %}
-
-{% block title %}Settings - Kindle Highlights{% endblock %}
-
-{% block content %}
+{% extends "base.html" %} {% block title %}Settings - Kindle Highlights{%
+endblock %} {% block content %}
 <div class="settings-container">
     <h2>Settings</h2>
 
@@ -18,24 +15,61 @@
     <div class="settings-section">
         <h3>🔄 Sync Highlights</h3>
         <p class="section-description">
-            Sync your Kindle highlights from Amazon. This will download new highlights and update existing ones.
+            Sync your Kindle highlights from Amazon. This will download new
+            highlights and update existing ones.
         </p>
         <div class="action-buttons">
-            <button id="sync-btn" class="btn btn-primary" onclick="syncHighlights()">
+            <button
+                id="sync-btn"
+                class="btn btn-primary"
+                onclick="syncHighlights()"
+            >
                 Sync Now
             </button>
-            <button id="full-sync-btn" class="btn btn-secondary" onclick="syncHighlights(true)">
+            <button
+                id="full-sync-btn"
+                class="btn btn-secondary"
+                onclick="syncHighlights(true)"
+            >
                 Full Sync (Slower)
             </button>
         </div>
         <div id="sync-result"></div>
     </div>
 
+    <!-- Export Directory Section -->
+    <div class="settings-section">
+        <h3>📁 Export Directory</h3>
+        <p class="section-description">
+            Configure the default directory where your exports will be saved.
+        </p>
+        <div class="export-dir-form">
+            <div class="form-group">
+                <label for="export-directory">Export Directory:</label>
+                <input
+                    type="text"
+                    id="export-directory"
+                    class="form-control"
+                    placeholder="Loading..."
+                />
+            </div>
+            <button
+                id="save-dir-btn"
+                class="btn btn-primary"
+                onclick="saveExportDirectory()"
+            >
+                Save Directory
+            </button>
+        </div>
+        <div id="export-dir-result"></div>
+    </div>
+
     <!-- Export Section -->
     <div class="settings-section">
         <h3>📤 Export Highlights</h3>
         <p class="section-description">
-            Export your highlights to various formats. Files will be saved to your Downloads folder.
+            Export your highlights to various formats. Files will be saved to
+            your configured export directory.
         </p>
         <div class="export-form">
             <div class="form-group">
@@ -46,7 +80,11 @@
                     <option value="CSV">CSV (.csv)</option>
                 </select>
             </div>
-            <button id="export-btn" class="btn btn-primary" onclick="exportHighlights()">
+            <button
+                id="export-btn"
+                class="btn btn-primary"
+                onclick="exportHighlights()"
+            >
                 Export All Books
             </button>
         </div>
@@ -57,7 +95,8 @@
     <div class="settings-section">
         <h3>👤 Account</h3>
         <p class="section-description">
-            Manage your Amazon account connection. Logging out will clear stored session data.
+            Manage your Amazon account connection. Logging out will clear stored
+            session data.
         </p>
         <button id="logout-btn" class="btn btn-danger" onclick="logout()">
             Logout
@@ -153,6 +192,13 @@
         margin-bottom: 16px;
     }
 
+    .export-dir-form {
+        display: flex;
+        align-items: flex-end;
+        gap: 16px;
+        margin-bottom: 16px;
+    }
+
     .export-form {
         display: flex;
         align-items: flex-end;
@@ -221,70 +267,148 @@
 </style>
 
 <script>
-    // Load status on page load
-    document.addEventListener('DOMContentLoaded', loadStatus);
+    // Load status and export directory on page load
+    document.addEventListener("DOMContentLoaded", () => {
+        loadStatus();
+        loadExportDirectory();
+    });
+
+    async function loadExportDirectory() {
+        try {
+            const response = await fetch("/api/export-directory");
+            const data = await response.json();
+
+            if (data.success) {
+                document.getElementById("export-directory").value =
+                    data.data.export_directory;
+            }
+        } catch (error) {
+            document.getElementById("export-dir-result").innerHTML = `
+                <div class="alert alert-error">Failed to load export directory: ${error.message}</div>
+            `;
+        }
+    }
+
+    async function saveExportDirectory() {
+        const saveDirBtn = document.getElementById("save-dir-btn");
+        const exportDirInput = document.getElementById("export-directory");
+        const resultDiv = document.getElementById("export-dir-result");
+
+        const exportDir = exportDirInput.value.trim();
+
+        if (!exportDir) {
+            resultDiv.innerHTML = `
+                <div class="alert alert-error">Please enter a valid export directory</div>
+            `;
+            return;
+        }
+
+        saveDirBtn.disabled = true;
+        resultDiv.innerHTML = '<div class="alert alert-info">Saving...</div>';
+
+        try {
+            const response = await fetch("/api/export-directory", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ export_directory: exportDir }),
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                resultDiv.innerHTML = `
+                    <div class="alert alert-success">${data.message}</div>
+                `;
+                // Clear the message after 3 seconds
+                setTimeout(() => {
+                    resultDiv.innerHTML = "";
+                }, 3000);
+            } else {
+                resultDiv.innerHTML = `
+                    <div class="alert alert-error">${data.message || data.error}</div>
+                `;
+            }
+        } catch (error) {
+            resultDiv.innerHTML = `
+                <div class="alert alert-error">Failed to save: ${error.message}</div>
+            `;
+        } finally {
+            saveDirBtn.disabled = false;
+        }
+    }
 
     async function loadStatus() {
         try {
-            const response = await fetch('/api/status');
+            const response = await fetch("/api/status");
             const data = await response.json();
 
             const statusHtml = `
                 <div class="status-item">
                     <span class="status-label">Authentication Status:</span>
-                    <span class="status-badge ${data.authenticated ? 'authenticated' : 'not-authenticated'}">
-                        ${data.authenticated ? '✓ Authenticated' : '✗ Not Authenticated'}
+                    <span class="status-badge ${data.authenticated ? "authenticated" : "not-authenticated"}">
+                        ${data.authenticated ? "✓ Authenticated" : "✗ Not Authenticated"}
                     </span>
                 </div>
-                ${data.session_age ? `
+                ${
+                    data.session_age
+                        ? `
                 <div class="status-item">
                     <span class="status-label">Session Age:</span>
                     <span class="status-value">${data.session_age}</span>
                 </div>
-                ` : ''}
-                ${data.last_sync ? `
+                `
+                        : ""
+                }
+                ${
+                    data.last_sync
+                        ? `
                 <div class="status-item">
                     <span class="status-label">Last Sync:</span>
                     <span class="status-value">${new Date(data.last_sync).toLocaleString()}</span>
                 </div>
-                ` : ''}
+                `
+                        : ""
+                }
             `;
 
-            document.getElementById('status-info').innerHTML = statusHtml;
+            document.getElementById("status-info").innerHTML = statusHtml;
         } catch (error) {
-            document.getElementById('status-info').innerHTML = `
+            document.getElementById("status-info").innerHTML = `
                 <div class="alert alert-error">Failed to load status: ${error.message}</div>
             `;
         }
     }
 
     async function syncHighlights(full = false) {
-        const syncBtn = document.getElementById('sync-btn');
-        const fullSyncBtn = document.getElementById('full-sync-btn');
-        const resultDiv = document.getElementById('sync-result');
+        const syncBtn = document.getElementById("sync-btn");
+        const fullSyncBtn = document.getElementById("full-sync-btn");
+        const resultDiv = document.getElementById("sync-result");
 
         // Disable buttons
         syncBtn.disabled = true;
         fullSyncBtn.disabled = true;
 
-        resultDiv.innerHTML = '<div class="alert alert-info">Syncing... This may take a minute.</div>';
+        resultDiv.innerHTML =
+            '<div class="alert alert-info">Syncing... This may take a minute.</div>';
 
         try {
-            const response = await fetch('/api/sync', {
-                method: 'POST',
+            const response = await fetch("/api/sync", {
+                method: "POST",
                 headers: {
-                    'Content-Type': 'application/json',
+                    "Content-Type": "application/json",
                 },
-                body: JSON.stringify({ full: full })
+                body: JSON.stringify({ full: full }),
             });
 
             const data = await response.json();
 
             if (data.success) {
-                let detailsHtml = '';
+                let detailsHtml = "";
                 if (data.data.books && data.data.books.length > 0) {
                     detailsHtml = '<div class="sync-details">';
-                    data.data.books.forEach(book => {
+                    data.data.books.forEach((book) => {
                         detailsHtml += `
                             <div class="sync-book">
                                 <div class="sync-book-title">${book.title}</div>
@@ -294,7 +418,7 @@
                             </div>
                         `;
                     });
-                    detailsHtml += '</div>';
+                    detailsHtml += "</div>";
                 }
 
                 resultDiv.innerHTML = `
@@ -302,7 +426,7 @@
                         ${data.message}
                         <br><strong>${data.data.books_synced}</strong> books synced
                         · <strong>${data.data.new_highlights}</strong> new highlights
-                        ${data.data.deleted_highlights > 0 ? `· <strong>${data.data.deleted_highlights}</strong> deleted` : ''}
+                        ${data.data.deleted_highlights > 0 ? `· <strong>${data.data.deleted_highlights}</strong> deleted` : ""}
                     </div>
                     ${detailsHtml}
                 `;
@@ -325,26 +449,46 @@
     }
 
     async function exportHighlights() {
-        const exportBtn = document.getElementById('export-btn');
-        const formatSelect = document.getElementById('export-format');
-        const resultDiv = document.getElementById('export-result');
+        const exportBtn = document.getElementById("export-btn");
+        const formatSelect = document.getElementById("export-format");
+        const resultDiv = document.getElementById("export-result");
 
         const format = formatSelect.value;
-        const downloadsPath = getDownloadsPath();
+
+        // Get the configured export directory
+        let exportDir;
+        try {
+            const dirResponse = await fetch("/api/export-directory");
+            const dirData = await dirResponse.json();
+            if (dirData.success) {
+                exportDir = dirData.data.export_directory;
+            } else {
+                resultDiv.innerHTML = `
+                    <div class="alert alert-error">Failed to get export directory</div>
+                `;
+                return;
+            }
+        } catch (error) {
+            resultDiv.innerHTML = `
+                <div class="alert alert-error">Failed to get export directory: ${error.message}</div>
+            `;
+            return;
+        }
 
         exportBtn.disabled = true;
-        resultDiv.innerHTML = '<div class="alert alert-info">Exporting...</div>';
+        resultDiv.innerHTML =
+            '<div class="alert alert-info">Exporting...</div>';
 
         try {
-            const response = await fetch('/api/export', {
-                method: 'POST',
+            const response = await fetch("/api/export", {
+                method: "POST",
                 headers: {
-                    'Content-Type': 'application/json',
+                    "Content-Type": "application/json",
                 },
                 body: JSON.stringify({
-                    output_dir: downloadsPath,
-                    format: format
-                })
+                    output_dir: exportDir,
+                    format: format,
+                }),
             });
 
             const data = await response.json();
@@ -353,7 +497,7 @@
                 resultDiv.innerHTML = `
                     <div class="alert alert-success">
                         ${data.message}
-                        <br><strong>${data.data.files_created.length}</strong> files created in ${downloadsPath}
+                        <br><strong>${data.data.files_created.length}</strong> files created in ${exportDir}
                     </div>
                 `;
             } else {
@@ -371,19 +515,24 @@
     }
 
     async function logout() {
-        if (!confirm('Are you sure you want to logout? This will clear your stored session.')) {
+        if (
+            !confirm(
+                "Are you sure you want to logout? This will clear your stored session.",
+            )
+        ) {
             return;
         }
 
-        const logoutBtn = document.getElementById('logout-btn');
-        const resultDiv = document.getElementById('logout-result');
+        const logoutBtn = document.getElementById("logout-btn");
+        const resultDiv = document.getElementById("logout-result");
 
         logoutBtn.disabled = true;
-        resultDiv.innerHTML = '<div class="alert alert-info">Logging out...</div>';
+        resultDiv.innerHTML =
+            '<div class="alert alert-info">Logging out...</div>';
 
         try {
-            const response = await fetch('/api/auth/logout', {
-                method: 'POST'
+            const response = await fetch("/api/auth/logout", {
+                method: "POST",
             });
 
             const data = await response.json();
@@ -405,19 +554,6 @@
             `;
         } finally {
             logoutBtn.disabled = false;
-        }
-    }
-
-    function getDownloadsPath() {
-        // Try to determine downloads path based on platform
-        // This is a simple heuristic - server will use this path
-        const userAgent = navigator.userAgent.toLowerCase();
-        if (userAgent.includes('mac')) {
-            return `${window.location.protocol}//${window.location.host}/tmp/exports`;
-        } else if (userAgent.includes('win')) {
-            return `${window.location.protocol}//${window.location.host}/tmp/exports`;
-        } else {
-            return `${window.location.protocol}//${window.location.host}/tmp/exports`;
         }
     }
 </script>

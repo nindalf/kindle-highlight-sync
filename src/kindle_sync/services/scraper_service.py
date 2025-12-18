@@ -30,7 +30,9 @@ class KindleScraper:
     def scrape_books(self) -> list[Book]:
         """Scrape all books from notebook page."""
         try:
-            response = self.session.get(self.region_config.notebook_url, timeout=Config.REQUEST_TIMEOUT)
+            response = self.session.get(
+                self.region_config.notebook_url, timeout=Config.REQUEST_TIMEOUT
+            )
             response.raise_for_status()
         except requests.RequestException as e:
             exc = ScraperError("Failed to fetch notebook page")
@@ -38,7 +40,9 @@ class KindleScraper:
             exc.add_note(f"Region: {self.region}")
             raise exc from e
 
-        book_elements = BeautifulSoup(response.text, "html.parser").select(".kp-notebook-library-each-book")
+        book_elements = BeautifulSoup(response.text, "html.parser").select(
+            ".kp-notebook-library-each-book"
+        )
         if not book_elements:
             return []
 
@@ -125,7 +129,7 @@ class KindleScraper:
             author = author_element.get_text(strip=True)
             for prefix in ["By: ", "Par: ", "De: ", "Di: ", "Por: "]:
                 if author.startswith(prefix):
-                    author = author[len(prefix):]
+                    author = author[len(prefix) :]
                     break
 
         image_url = None

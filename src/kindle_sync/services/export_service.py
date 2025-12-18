@@ -24,7 +24,11 @@ class Exporter:
 
     def __init__(self, db: Any, templates_dir: str | None = None) -> None:
         self.db = db
-        template_path = Path(templates_dir).expanduser() if templates_dir else Path(__file__).parent.parent / "templates"
+        template_path = (
+            Path(templates_dir).expanduser()
+            if templates_dir
+            else Path(__file__).parent.parent / "templates"
+        )
         template_path.mkdir(parents=True, exist_ok=True)
         self.jinja_env = Environment(
             loader=FileSystemLoader(str(template_path)),
@@ -69,8 +73,14 @@ class Exporter:
             raise ExportError(f"Book with ASIN {asin} not found")
 
         book_highlights = BookHighlights(book=book, highlights=self.db.get_highlights(book.asin))
-        output_path = Path(output_path).expanduser() if isinstance(output_path, str) else output_path
-        file_path = output_path / self._generate_filename(book, format) if output_path.is_dir() else output_path
+        output_path = (
+            Path(output_path).expanduser() if isinstance(output_path, str) else output_path
+        )
+        file_path = (
+            output_path / self._generate_filename(book, format)
+            if output_path.is_dir()
+            else output_path
+        )
 
         match format:
             case ExportFormat.MARKDOWN:
@@ -109,32 +119,38 @@ class Exporter:
     def _export_json(self, book_highlights: BookHighlights) -> str:
         """Export to JSON format."""
         book = book_highlights.book
-        return json.dumps({
-            "book": {
-                "asin": book.asin,
-                "title": book.title,
-                "author": book.author,
-                "url": book.url,
-                "image_url": book.image_url,
-                "last_annotated_date": book.last_annotated_date.isoformat() if book.last_annotated_date else None,
+        return json.dumps(
+            {
+                "book": {
+                    "asin": book.asin,
+                    "title": book.title,
+                    "author": book.author,
+                    "url": book.url,
+                    "image_url": book.image_url,
+                    "last_annotated_date": book.last_annotated_date.isoformat()
+                    if book.last_annotated_date
+                    else None,
+                },
+                "highlights": [
+                    {
+                        "id": h.id,
+                        "text": h.text,
+                        "location": h.location,
+                        "page": h.page,
+                        "note": h.note,
+                        "color": h.color.value if h.color else None,
+                        "created_date": h.created_date.isoformat() if h.created_date else None,
+                    }
+                    for h in book_highlights.highlights
+                ],
+                "metadata": {
+                    "total_highlights": len(book_highlights.highlights),
+                    "export_date": datetime.now().isoformat(),
+                },
             },
-            "highlights": [
-                {
-                    "id": h.id,
-                    "text": h.text,
-                    "location": h.location,
-                    "page": h.page,
-                    "note": h.note,
-                    "color": h.color.value if h.color else None,
-                    "created_date": h.created_date.isoformat() if h.created_date else None,
-                }
-                for h in book_highlights.highlights
-            ],
-            "metadata": {
-                "total_highlights": len(book_highlights.highlights),
-                "export_date": datetime.now().isoformat(),
-            },
-        }, indent=2, ensure_ascii=False)
+            indent=2,
+            ensure_ascii=False,
+        )
 
     def _export_csv(self, book_highlights: BookHighlights) -> str:
         """Export to CSV format."""
@@ -142,21 +158,35 @@ class Exporter:
 
         output = io.StringIO()
         writer = csv.writer(output)
-        writer.writerow(["Book Title", "Author", "ASIN", "Highlight", "Location", "Page", "Note", "Color", "Date"])
+        writer.writerow(
+            [
+                "Book Title",
+                "Author",
+                "ASIN",
+                "Highlight",
+                "Location",
+                "Page",
+                "Note",
+                "Color",
+                "Date",
+            ]
+        )
 
         book = book_highlights.book
         for h in book_highlights.highlights:
-            writer.writerow([
-                book.title,
-                book.author,
-                book.asin,
-                h.text,
-                h.location or "",
-                h.page or "",
-                h.note or "",
-                h.color.value if h.color else "",
-                h.created_date.strftime("%Y-%m-%d") if h.created_date else "",
-            ])
+            writer.writerow(
+                [
+                    book.title,
+                    book.author,
+                    book.asin,
+                    h.text,
+                    h.location or "",
+                    h.page or "",
+                    h.note or "",
+                    h.color.value if h.color else "",
+                    h.created_date.strftime("%Y-%m-%d") if h.created_date else "",
+                ]
+            )
 
         return output.getvalue()
 
@@ -237,12 +267,17 @@ class ExportService:
             books = db.get_all_books()
             if not books:
                 db.close()
-                return ExportResult(success=False, message="No books found", error="Database is empty")
+                return ExportResult(
+                    success=False, message="No books found", error="Database is empty"
+                )
 
             created_files = Exporter(db).export_all(output_dir, format, template)
             db.close()
-            return ExportResult(success=True, message=f"Exported {len(created_files)} file(s)",
-                              files_created=created_files)
+            return ExportResult(
+                success=True,
+                message=f"Exported {len(created_files)} file(s)",
+                files_created=created_files,
+            )
         except Exception as e:
             db.close()
             return ExportResult(success=False, message="Export failed", error=str(e))
@@ -265,11 +300,15 @@ class ExportService:
             book = db.get_book(asin)
             if not book:
                 db.close()
-                return ExportResult(success=False, message="Book not found", error=f"No book with ASIN {asin}")
+                return ExportResult(
+                    success=False, message="Book not found", error=f"No book with ASIN {asin}"
+                )
 
             file_path = Exporter(db).export_book(asin, output_path, format, template)
             db.close()
-            return ExportResult(success=True, message=f"Exported {book.title}", files_created=[file_path])
+            return ExportResult(
+                success=True, message=f"Exported {book.title}", files_created=[file_path]
+            )
         except Exception as e:
             db.close()
             return ExportResult(success=False, message="Export failed", error=str(e))
@@ -308,8 +347,11 @@ class ExportService:
             db.close()
 
             if not created_files:
-                return ExportResult(success=False, message="No books exported",
-                                  error=f"Books not found: {', '.join(not_found)}")
+                return ExportResult(
+                    success=False,
+                    message="No books exported",
+                    error=f"Books not found: {', '.join(not_found)}",
+                )
 
             message = f"Exported {len(created_files)} file(s)"
             if not_found:

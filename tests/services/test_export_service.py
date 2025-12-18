@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from kindle_sync.models import Book, ExportFormat, Highlight, HighlightColor
+from kindle_sync.models import Book, ExportFormat, Highlight
 from kindle_sync.services.export_service import Exporter, ExportError
 
 

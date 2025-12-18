@@ -54,7 +54,9 @@ class SyncService:
             auth = AuthManager(db, region)
             if not auth.is_authenticated():
                 db.close()
-                return SyncResult(success=False, message="Not authenticated", error="Please login first")
+                return SyncResult(
+                    success=False, message="Not authenticated", error="Please login first"
+                )
 
             scraper = KindleScraper(auth.get_session(), region)
 
@@ -70,8 +72,11 @@ class SyncService:
                 scraped_books = [b for b in scraped_books if b.asin in book_asins]
                 if not scraped_books:
                     db.close()
-                    return SyncResult(success=False, message="None of the specified books found",
-                                    error=f"Books not found: {', '.join(book_asins)}")
+                    return SyncResult(
+                        success=False,
+                        message="None of the specified books found",
+                        error=f"Books not found: {', '.join(book_asins)}",
+                    )
 
             for book in scraped_books:
                 db.insert_book(book)
@@ -82,7 +87,9 @@ class SyncService:
 
             for i, book in enumerate(scraped_books, 1):
                 if progress_callback:
-                    progress_callback(f"Syncing '{book.title}' by {book.author} ({i}/{len(scraped_books)})")
+                    progress_callback(
+                        f"Syncing '{book.title}' by {book.author} ({i}/{len(scraped_books)})"
+                    )
 
                 highlights = scraper.scrape_highlights(book)
                 existing_highlights = db.get_highlights(book.asin)
@@ -102,14 +109,16 @@ class SyncService:
                 total_new += new_count
                 total_deleted += len(deleted_ids)
 
-                book_details.append(BookSyncDetail(
-                    asin=book.asin,
-                    title=book.title,
-                    author=book.author,
-                    new_highlights=new_count,
-                    deleted_highlights=len(deleted_ids),
-                    total_highlights=len(highlights),
-                ))
+                book_details.append(
+                    BookSyncDetail(
+                        asin=book.asin,
+                        title=book.title,
+                        author=book.author,
+                        new_highlights=new_count,
+                        deleted_highlights=len(deleted_ids),
+                        total_highlights=len(highlights),
+                    )
+                )
 
             db.set_last_sync(datetime.now())
             db.close()

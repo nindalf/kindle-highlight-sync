@@ -160,7 +160,7 @@ def sync(ctx: click.Context, full: bool, books: str | None) -> None:
 
 
 @main.command()
-@click.argument("output_dir", type=click.Path())
+@click.argument("output_dir", type=click.Path(), default=Config.DEFAULT_EXPORT_DIR)
 @click.option(
     "--format",
     type=click.Choice(["markdown", "json", "csv"], case_sensitive=False),

@@ -320,7 +320,9 @@ class DatabaseManager:
     def get_highlight_count(self, book_asin: str) -> int:
         self.connect()
         assert self.conn is not None
-        cursor = self.conn.execute("SELECT COUNT(*) FROM highlights WHERE book_asin = ?", (book_asin,))
+        cursor = self.conn.execute(
+            "SELECT COUNT(*) FROM highlights WHERE book_asin = ?", (book_asin,)
+        )
         row = cursor.fetchone()
         return row[0] if row else 0
 
@@ -408,7 +410,9 @@ class DatabaseManager:
         if sort_by == "author":
             books_with_counts.sort(key=lambda b: b.book.author)
         elif sort_by == "date":
-            books_with_counts.sort(key=lambda b: b.book.last_annotated_date or datetime.min, reverse=True)
+            books_with_counts.sort(
+                key=lambda b: b.book.last_annotated_date or datetime.min, reverse=True
+            )
 
         return books_with_counts
 
@@ -423,3 +427,28 @@ class DatabaseManager:
             "total_highlights": total_highlights,
             "last_sync": last_sync.isoformat() if last_sync else None,
         }
+
+    def get_export_directory(self) -> str | None:
+        """Get the configured export directory."""
+        self.connect()
+        assert self.conn is not None
+        cursor = self.conn.execute("SELECT value FROM sync_metadata WHERE key = 'export_directory'")
+        if row := cursor.fetchone():
+            return row[0]
+        return None
+
+    def set_export_directory(self, directory: str) -> None:
+        """Set the export directory."""
+        self.connect()
+        assert self.conn is not None
+        self.conn.execute(
+            """
+            INSERT INTO sync_metadata (key, value, updated_at)
+            VALUES (?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(key) DO UPDATE SET
+                value = excluded.value,
+                updated_at = CURRENT_TIMESTAMP
+            """,
+            ("export_directory", directory),
+        )
+        self.conn.commit()

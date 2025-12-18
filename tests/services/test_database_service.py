@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from kindle_sync.models import Book, Highlight, HighlightColor
+from kindle_sync.models import Book, Highlight
 from kindle_sync.services.database_service import DatabaseError, DatabaseManager
 
 

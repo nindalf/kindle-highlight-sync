@@ -246,7 +246,13 @@ def create_app(db_path: str | None = None) -> Flask:
         book_asins = data.get("books")
 
         if not output_dir:
-            return jsonify({"success": False, "message": "output_dir is required", "error": "Missing output_dir parameter"}), 400
+            return jsonify(
+                {
+                    "success": False,
+                    "message": "output_dir is required",
+                    "error": "Missing output_dir parameter",
+                }
+            ), 400
 
         try:
             export_format = ExportFormat[format_str]
@@ -275,6 +281,46 @@ def create_app(db_path: str | None = None) -> Flask:
                 "message": result.message,
                 "data": {"files_created": result.files_created},
                 "error": result.error,
+            }
+        )
+
+    @app.route("/api/export-directory", methods=["GET"])
+    def api_get_export_directory():
+        """Get the configured export directory."""
+        from kindle_sync.config import Config
+
+        db = get_db()
+        export_dir = db.get_export_directory()
+
+        # Use default if not set
+        if not export_dir:
+            export_dir = Config.DEFAULT_EXPORT_DIR
+
+        return jsonify({"success": True, "data": {"export_directory": export_dir}})
+
+    @app.route("/api/export-directory", methods=["POST"])
+    def api_set_export_directory():
+        """Set the export directory."""
+        data = request.get_json() or {}
+        export_dir = data.get("export_directory", "").strip()
+
+        if not export_dir:
+            return jsonify(
+                {
+                    "success": False,
+                    "message": "export_directory is required",
+                    "error": "Missing export_directory parameter",
+                }
+            ), 400
+
+        db = get_db()
+        db.set_export_directory(export_dir)
+
+        return jsonify(
+            {
+                "success": True,
+                "message": "Export directory updated",
+                "data": {"export_directory": export_dir},
             }
         )
 
@@ -313,7 +359,13 @@ def create_app(db_path: str | None = None) -> Flask:
         db = get_db()
         book = db.get_book(asin)
         if not book:
-            return jsonify({"success": False, "message": "Book not found", "error": f"No book with ASIN {asin}"}), 404
+            return jsonify(
+                {
+                    "success": False,
+                    "message": "Book not found",
+                    "error": f"No book with ASIN {asin}",
+                }
+            ), 404
 
         highlights = db.get_highlights(asin)
 
@@ -328,7 +380,9 @@ def create_app(db_path: str | None = None) -> Flask:
                         "url": book.url,
                         "image_url": book.image_url,
                         "last_annotated_date": (
-                            book.last_annotated_date.isoformat() if book.last_annotated_date else None
+                            book.last_annotated_date.isoformat()
+                            if book.last_annotated_date
+                            else None
                         ),
                     },
                     "highlights": [
@@ -354,7 +408,9 @@ def create_app(db_path: str | None = None) -> Flask:
         book_asin = request.args.get("book")
 
         if not query:
-            return jsonify({"success": False, "message": "Query is required", "error": "Missing q parameter"}), 400
+            return jsonify(
+                {"success": False, "message": "Query is required", "error": "Missing q parameter"}
+            ), 400
 
         db = get_db()
         results = db.search_highlights(query, book_asin)
@@ -370,7 +426,9 @@ def create_app(db_path: str | None = None) -> Flask:
                             "location": result.highlight.location,
                             "page": result.highlight.page,
                             "note": result.highlight.note,
-                            "color": result.highlight.color.value if result.highlight.color else None,
+                            "color": result.highlight.color.value
+                            if result.highlight.color
+                            else None,
                         },
                         "book": {
                             "asin": result.book.asin,

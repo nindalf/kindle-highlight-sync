@@ -3,7 +3,6 @@
 import json
 import time
 from dataclasses import dataclass
-from datetime import datetime
 from typing import Any
 
 import requests
@@ -87,7 +86,11 @@ class AuthManager:
         try:
             session = self.get_session()
             response = session.get(self.region_config.notebook_url, timeout=Config.REQUEST_TIMEOUT)
-            return response.status_code == 200 and "signin" not in response.url.lower() and "login" not in response.url.lower()
+            return (
+                response.status_code == 200
+                and "signin" not in response.url.lower()
+                and "login" not in response.url.lower()
+            )
         except (AuthenticationError, requests.RequestException):
             return False
 
@@ -147,8 +150,11 @@ class AuthService:
             auth = AuthManager(db, region)
             if auth.is_authenticated():
                 db.close()
-                return AuthResult(success=True, message="Already authenticated",
-                                data={"already_authenticated": True})
+                return AuthResult(
+                    success=True,
+                    message="Already authenticated",
+                    data={"already_authenticated": True},
+                )
 
             success = auth.login(headless=headless)
             db.close()
@@ -156,7 +162,7 @@ class AuthService:
                 success=success,
                 message="Login successful" if success else "Login failed",
                 data={"region": region.value} if success else None,
-                error=None if success else "Authentication failed"
+                error=None if success else "Authentication failed",
             )
         except Exception as e:
             db.close()
@@ -202,8 +208,12 @@ class AuthService:
                     cookies_data = json.loads(cookies_json)
                     if cookies_data.get("cookies"):
                         min_expiry = min(
-                            (c.get("expiry", float("inf")) for c in cookies_data["cookies"] if "expiry" in c),
-                            default=None
+                            (
+                                c.get("expiry", float("inf"))
+                                for c in cookies_data["cookies"]
+                                if "expiry" in c
+                            ),
+                            default=None,
                         )
                         if min_expiry:
                             days_left = (min_expiry - time.time()) / 86400
