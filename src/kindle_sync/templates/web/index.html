@@ -1,13 +1,18 @@
-{% extends "base.html" %}
-
-{% block title %}My Kindle Books{% endblock %}
-
-{% block content %}
-{% if last_sync %}
-<div class="stats">
-    <p><strong>{{ total_books }}</strong> books with highlights | Last synced: {{ format_datetime(last_sync) }}</p>
+{% extends "base.html" %} {% block title %}My Kindle Books{% endblock %} {%
+block content %}
+<div class="index-header">
+    {% if last_sync %}
+    <div class="stats">
+        <p>
+            <strong>{{ total_books }}</strong> books with highlights | Last
+            synced: {{ format_datetime(last_sync) }}
+        </p>
+    </div>
+    {% endif %}
+    <div class="quick-actions">
+        <a href="/settings" class="btn btn-primary">⚙️ Settings</a>
+    </div>
 </div>
-{% endif %}
 
 {% if books %}
 <div class="book-grid">
@@ -17,7 +22,9 @@
         <div class="book-author">by {{ item.book.author }}</div>
         <div class="book-meta">
             <span>{{ item.book.asin }}</span>
-            <span class="highlight-count">{{ item.highlight_count }} highlights</span>
+            <span class="highlight-count"
+                >{{ item.highlight_count }} highlights</span
+            >
         </div>
     </a>
     {% endfor %}
@@ -25,7 +32,28 @@
 {% else %}
 <div class="empty-state">
     <h2>No books yet</h2>
-    <p>Run <code>kindle-sync login</code> and <code>kindle-sync sync</code> to get started</p>
+    <p>
+        Run <code>kindle-sync login</code> and <code>kindle-sync sync</code> to
+        get started
+    </p>
+    <p style="margin-top: 20px">
+        Or use the <a href="/settings">Settings page</a> to sync from the web
+        interface
+    </p>
 </div>
 {% endif %}
+
+<style>
+    .index-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 30px;
+    }
+
+    .quick-actions {
+        display: flex;
+        gap: 10px;
+    }
+</style>
 {% endblock %}

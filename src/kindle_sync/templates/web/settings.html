@@ -1,0 +1,425 @@
+{% extends "base.html" %}
+
+{% block title %}Settings - Kindle Highlights{% endblock %}
+
+{% block content %}
+<div class="settings-container">
+    <h2>Settings</h2>
+
+    <!-- Status Section -->
+    <div class="settings-section">
+        <h3>📊 Status</h3>
+        <div id="status-info" class="status-box">
+            <div class="loading">Loading status...</div>
+        </div>
+    </div>
+
+    <!-- Sync Section -->
+    <div class="settings-section">
+        <h3>🔄 Sync Highlights</h3>
+        <p class="section-description">
+            Sync your Kindle highlights from Amazon. This will download new highlights and update existing ones.
+        </p>
+        <div class="action-buttons">
+            <button id="sync-btn" class="btn btn-primary" onclick="syncHighlights()">
+                Sync Now
+            </button>
+            <button id="full-sync-btn" class="btn btn-secondary" onclick="syncHighlights(true)">
+                Full Sync (Slower)
+            </button>
+        </div>
+        <div id="sync-result"></div>
+    </div>
+
+    <!-- Export Section -->
+    <div class="settings-section">
+        <h3>📤 Export Highlights</h3>
+        <p class="section-description">
+            Export your highlights to various formats. Files will be saved to your Downloads folder.
+        </p>
+        <div class="export-form">
+            <div class="form-group">
+                <label for="export-format">Format:</label>
+                <select id="export-format" class="form-control">
+                    <option value="MARKDOWN">Markdown (.md)</option>
+                    <option value="JSON">JSON (.json)</option>
+                    <option value="CSV">CSV (.csv)</option>
+                </select>
+            </div>
+            <button id="export-btn" class="btn btn-primary" onclick="exportHighlights()">
+                Export All Books
+            </button>
+        </div>
+        <div id="export-result"></div>
+    </div>
+
+    <!-- Account Section -->
+    <div class="settings-section">
+        <h3>👤 Account</h3>
+        <p class="section-description">
+            Manage your Amazon account connection. Logging out will clear stored session data.
+        </p>
+        <button id="logout-btn" class="btn btn-danger" onclick="logout()">
+            Logout
+        </button>
+        <div id="logout-result"></div>
+    </div>
+</div>
+
+<style>
+    .settings-container {
+        max-width: 800px;
+    }
+
+    .settings-container h2 {
+        font-size: 32px;
+        margin-bottom: 30px;
+        color: #232f3e;
+    }
+
+    .settings-section {
+        background: #fff;
+        border-radius: 8px;
+        padding: 24px;
+        margin-bottom: 24px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .settings-section h3 {
+        font-size: 20px;
+        margin-bottom: 12px;
+        color: #232f3e;
+    }
+
+    .section-description {
+        color: #666;
+        font-size: 14px;
+        margin-bottom: 20px;
+        line-height: 1.6;
+    }
+
+    .status-box {
+        background: #f9f9f9;
+        border-radius: 6px;
+        padding: 16px;
+        border: 1px solid #e0e0e0;
+    }
+
+    .status-box .loading {
+        color: #999;
+        font-style: italic;
+    }
+
+    .status-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 8px 0;
+        border-bottom: 1px solid #e0e0e0;
+    }
+
+    .status-item:last-child {
+        border-bottom: none;
+    }
+
+    .status-label {
+        font-weight: 600;
+        color: #555;
+    }
+
+    .status-value {
+        color: #333;
+    }
+
+    .status-badge {
+        padding: 4px 12px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 600;
+    }
+
+    .status-badge.authenticated {
+        background: #d4edda;
+        color: #155724;
+    }
+
+    .status-badge.not-authenticated {
+        background: #f8d7da;
+        color: #721c24;
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: 12px;
+        margin-bottom: 16px;
+    }
+
+    .export-form {
+        display: flex;
+        align-items: flex-end;
+        gap: 16px;
+        margin-bottom: 16px;
+    }
+
+    .form-group {
+        flex: 1;
+    }
+
+    .form-group label {
+        display: block;
+        font-size: 14px;
+        font-weight: 600;
+        margin-bottom: 6px;
+        color: #555;
+    }
+
+    .form-control {
+        width: 100%;
+        padding: 10px 12px;
+        font-size: 14px;
+        border: 2px solid #e0e0e0;
+        border-radius: 6px;
+        font-family: inherit;
+        background: white;
+    }
+
+    .form-control:focus {
+        outline: none;
+        border-color: #0066c0;
+    }
+
+    .sync-details {
+        background: #f9f9f9;
+        border-radius: 6px;
+        padding: 12px;
+        margin-top: 12px;
+        font-size: 13px;
+    }
+
+    .sync-details strong {
+        color: #0066c0;
+    }
+
+    .sync-book {
+        padding: 8px 0;
+        border-bottom: 1px solid #e0e0e0;
+    }
+
+    .sync-book:last-child {
+        border-bottom: none;
+    }
+
+    .sync-book-title {
+        font-weight: 600;
+        color: #333;
+    }
+
+    .sync-book-stats {
+        color: #666;
+        font-size: 12px;
+        margin-top: 4px;
+    }
+</style>
+
+<script>
+    // Load status on page load
+    document.addEventListener('DOMContentLoaded', loadStatus);
+
+    async function loadStatus() {
+        try {
+            const response = await fetch('/api/status');
+            const data = await response.json();
+
+            const statusHtml = `
+                <div class="status-item">
+                    <span class="status-label">Authentication Status:</span>
+                    <span class="status-badge ${data.authenticated ? 'authenticated' : 'not-authenticated'}">
+                        ${data.authenticated ? '✓ Authenticated' : '✗ Not Authenticated'}
+                    </span>
+                </div>
+                ${data.session_age ? `
+                <div class="status-item">
+                    <span class="status-label">Session Age:</span>
+                    <span class="status-value">${data.session_age}</span>
+                </div>
+                ` : ''}
+                ${data.last_sync ? `
+                <div class="status-item">
+                    <span class="status-label">Last Sync:</span>
+                    <span class="status-value">${new Date(data.last_sync).toLocaleString()}</span>
+                </div>
+                ` : ''}
+            `;
+
+            document.getElementById('status-info').innerHTML = statusHtml;
+        } catch (error) {
+            document.getElementById('status-info').innerHTML = `
+                <div class="alert alert-error">Failed to load status: ${error.message}</div>
+            `;
+        }
+    }
+
+    async function syncHighlights(full = false) {
+        const syncBtn = document.getElementById('sync-btn');
+        const fullSyncBtn = document.getElementById('full-sync-btn');
+        const resultDiv = document.getElementById('sync-result');
+
+        // Disable buttons
+        syncBtn.disabled = true;
+        fullSyncBtn.disabled = true;
+
+        resultDiv.innerHTML = '<div class="alert alert-info">Syncing... This may take a minute.</div>';
+
+        try {
+            const response = await fetch('/api/sync', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ full: full })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                let detailsHtml = '';
+                if (data.data.books && data.data.books.length > 0) {
+                    detailsHtml = '<div class="sync-details">';
+                    data.data.books.forEach(book => {
+                        detailsHtml += `
+                            <div class="sync-book">
+                                <div class="sync-book-title">${book.title}</div>
+                                <div class="sync-book-stats">
+                                    ${book.new_highlights} new · ${book.deleted_highlights} deleted · ${book.total_highlights} total
+                                </div>
+                            </div>
+                        `;
+                    });
+                    detailsHtml += '</div>';
+                }
+
+                resultDiv.innerHTML = `
+                    <div class="alert alert-success">
+                        ${data.message}
+                        <br><strong>${data.data.books_synced}</strong> books synced
+                        · <strong>${data.data.new_highlights}</strong> new highlights
+                        ${data.data.deleted_highlights > 0 ? `· <strong>${data.data.deleted_highlights}</strong> deleted` : ''}
+                    </div>
+                    ${detailsHtml}
+                `;
+
+                // Reload status
+                loadStatus();
+            } else {
+                resultDiv.innerHTML = `
+                    <div class="alert alert-error">${data.message || data.error}</div>
+                `;
+            }
+        } catch (error) {
+            resultDiv.innerHTML = `
+                <div class="alert alert-error">Sync failed: ${error.message}</div>
+            `;
+        } finally {
+            syncBtn.disabled = false;
+            fullSyncBtn.disabled = false;
+        }
+    }
+
+    async function exportHighlights() {
+        const exportBtn = document.getElementById('export-btn');
+        const formatSelect = document.getElementById('export-format');
+        const resultDiv = document.getElementById('export-result');
+
+        const format = formatSelect.value;
+        const downloadsPath = getDownloadsPath();
+
+        exportBtn.disabled = true;
+        resultDiv.innerHTML = '<div class="alert alert-info">Exporting...</div>';
+
+        try {
+            const response = await fetch('/api/export', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    output_dir: downloadsPath,
+                    format: format
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                resultDiv.innerHTML = `
+                    <div class="alert alert-success">
+                        ${data.message}
+                        <br><strong>${data.data.files_created.length}</strong> files created in ${downloadsPath}
+                    </div>
+                `;
+            } else {
+                resultDiv.innerHTML = `
+                    <div class="alert alert-error">${data.message || data.error}</div>
+                `;
+            }
+        } catch (error) {
+            resultDiv.innerHTML = `
+                <div class="alert alert-error">Export failed: ${error.message}</div>
+            `;
+        } finally {
+            exportBtn.disabled = false;
+        }
+    }
+
+    async function logout() {
+        if (!confirm('Are you sure you want to logout? This will clear your stored session.')) {
+            return;
+        }
+
+        const logoutBtn = document.getElementById('logout-btn');
+        const resultDiv = document.getElementById('logout-result');
+
+        logoutBtn.disabled = true;
+        resultDiv.innerHTML = '<div class="alert alert-info">Logging out...</div>';
+
+        try {
+            const response = await fetch('/api/auth/logout', {
+                method: 'POST'
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                resultDiv.innerHTML = `
+                    <div class="alert alert-success">${data.message}</div>
+                `;
+                // Reload status
+                setTimeout(loadStatus, 1000);
+            } else {
+                resultDiv.innerHTML = `
+                    <div class="alert alert-error">${data.message || data.error}</div>
+                `;
+            }
+        } catch (error) {
+            resultDiv.innerHTML = `
+                <div class="alert alert-error">Logout failed: ${error.message}</div>
+            `;
+        } finally {
+            logoutBtn.disabled = false;
+        }
+    }
+
+    function getDownloadsPath() {
+        // Try to determine downloads path based on platform
+        // This is a simple heuristic - server will use this path
+        const userAgent = navigator.userAgent.toLowerCase();
+        if (userAgent.includes('mac')) {
+            return `${window.location.protocol}//${window.location.host}/tmp/exports`;
+        } else if (userAgent.includes('win')) {
+            return `${window.location.protocol}//${window.location.host}/tmp/exports`;
+        } else {
+            return `${window.location.protocol}//${window.location.host}/tmp/exports`;
+        }
+    }
+</script>
+
+{% endblock %}

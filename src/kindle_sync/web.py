@@ -27,7 +27,7 @@ def create_app(db_path: str | None = None) -> Flask:
 
     # Store database path in app config
     if db_path is None:
-        db_path = str(Path.home() / ".kindle-sync" / "kindle.db")
+        db_path = str(Path.home() / ".kindle-sync" / "highlights.db")
 
     app.config["DB_PATH"] = db_path
 
@@ -171,6 +171,11 @@ def create_app(db_path: str | None = None) -> Flask:
             total_results=len(results),
             book_filter=book_filter,
         )
+
+    @app.route("/settings")
+    def settings():
+        """Show settings page with sync, export, and logout options."""
+        return render_template("settings.html")
 
     # ============================================================================
     # API Routes

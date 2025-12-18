@@ -184,16 +184,39 @@ class AuthService:
         db.init_schema()
 
         try:
-            is_auth = AuthManager(db, AmazonRegion.GLOBAL).is_authenticated()
+            region_str = db.get_session("region") or "global"
+            try:
+                region = AmazonRegion(region_str)
+            except ValueError:
+                region = AmazonRegion.GLOBAL
+
+            is_auth = AuthManager(db, region).is_authenticated()
             books = db.get_all_books()
             last_sync = db.get_last_sync()
             total_highlights = sum(db.get_highlight_count(book.asin) for book in books)
-            region_str = db.get_session("region")
+
+            cookies_json = db.get_session("cookies")
+            session_age = None
+            if cookies_json:
+                try:
+                    cookies_data = json.loads(cookies_json)
+                    if cookies_data.get("cookies"):
+                        min_expiry = min(
+                            (c.get("expiry", float("inf")) for c in cookies_data["cookies"] if "expiry" in c),
+                            default=None
+                        )
+                        if min_expiry:
+                            days_left = (min_expiry - time.time()) / 86400
+                            session_age = f"{int(days_left)} days remaining"
+                except (json.JSONDecodeError, ValueError, KeyError):
+                    pass
+
             db.close()
 
             return {
                 "authenticated": is_auth,
                 "region": region_str,
+                "session_age": session_age,
                 "total_books": len(books),
                 "total_highlights": total_highlights,
                 "last_sync": last_sync.isoformat() if last_sync else None,
@@ -204,6 +227,7 @@ class AuthService:
             return {
                 "authenticated": False,
                 "region": None,
+                "session_age": None,
                 "total_books": 0,
                 "total_highlights": 0,
                 "last_sync": None,
