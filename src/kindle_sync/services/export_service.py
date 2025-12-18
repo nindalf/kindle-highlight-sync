@@ -230,6 +230,21 @@ class ExportService:
     def _export_json(book_highlights: BookHighlights) -> str:
         """Export to JSON format."""
         book = book_highlights.book
+
+        highlights = []
+        for h in book_highlights.highlights:
+            highlights.append(
+                {
+                    "id": h.id,
+                    "text": h.text,
+                    "location": h.location,
+                    "page": h.page,
+                    "note": h.note,
+                    "color": h.color.value if h.color else None,
+                    "created_date": h.created_date.isoformat() if h.created_date else None,
+                }
+            )
+
         return json.dumps(
             {
                 "book": {
@@ -256,18 +271,7 @@ class ExportService:
                     "price_gbp": book.price_gbp,
                     "price_inr": book.price_inr,
                 },
-                "highlights": [
-                    {
-                        "id": h.id,
-                        "text": h.text,
-                        "location": h.location,
-                        "page": h.page,
-                        "note": h.note,
-                        "color": h.color.value if h.color else None,
-                        "created_date": h.created_date.isoformat() if h.created_date else None,
-                    }
-                    for h in book_highlights.highlights
-                ],
+                "highlights": highlights,
                 "metadata": {
                     "total_highlights": len(book_highlights.highlights),
                     "export_date": datetime.now().isoformat(),
