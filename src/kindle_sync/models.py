@@ -80,3 +80,19 @@ class RegionConfig:
     hostname: str
     kindle_reader_url: str
     notebook_url: str
+
+
+@dataclass
+class BookWithHighlightCount:
+    """Book with highlight count."""
+
+    book: Book
+    highlight_count: int
+
+
+@dataclass
+class SearchResult:
+    """Search result with highlight and book."""
+
+    highlight: Highlight
+    book: Book

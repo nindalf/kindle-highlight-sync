@@ -4,7 +4,7 @@ import sqlite3
 from datetime import datetime
 from pathlib import Path
 
-from kindle_sync.models import Book, Highlight, HighlightColor
+from kindle_sync.models import Book, BookWithHighlightCount, Highlight, HighlightColor, SearchResult
 
 
 class DatabaseError(Exception):
@@ -17,24 +17,16 @@ class DatabaseManager:
     """Manages SQLite database operations."""
 
     def __init__(self, db_path: str) -> None:
-        """
-        Initialize database manager.
-
-        Args:
-            db_path: Path to SQLite database file
-        """
         self.db_path = Path(db_path).expanduser()
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self.conn: sqlite3.Connection | None = None
 
     def connect(self) -> None:
-        """Establish database connection."""
         if self.conn is None:
             self.conn = sqlite3.connect(str(self.db_path), timeout=10.0)
             self.conn.execute("PRAGMA foreign_keys = ON")
 
     def close(self) -> None:
-        """Close database connection."""
         if self.conn:
             self.conn.close()
             self.conn = None
@@ -104,18 +96,9 @@ class DatabaseManager:
 
         self.conn.commit()
 
-    # Session operations
     def save_session(self, key: str, value: str) -> None:
-        """
-        Save session data.
-
-        Args:
-            key: Session key
-            value: Session value (typically JSON string)
-        """
         self.connect()
         assert self.conn is not None
-
         self.conn.execute(
             """
             INSERT INTO session (key, value, updated_at)
@@ -129,46 +112,22 @@ class DatabaseManager:
         self.conn.commit()
 
     def get_session(self, key: str) -> str | None:
-        """
-        Get session data.
-
-        Args:
-            key: Session key
-
-        Returns:
-            Session value if found, None otherwise
-        """
         self.connect()
         assert self.conn is not None
-
         cursor = self.conn.execute("SELECT value FROM session WHERE key = ?", (key,))
         row = cursor.fetchone()
         return row[0] if row else None
 
     def clear_session(self) -> None:
-        """Clear all session data."""
         self.connect()
         assert self.conn is not None
-
         self.conn.execute("DELETE FROM session")
         self.conn.commit()
 
-    # Book operations
     def insert_book(self, book: Book) -> None:
-        """
-        Insert or update a book.
-
-        Uses UPSERT logic - if book exists, updates it.
-
-        Args:
-            book: Book object to insert
-
-        Raises:
-            DatabaseError: If insertion fails
-        """
+        """Insert or update a book (UPSERT)."""
         self.connect()
         assert self.conn is not None
-
         try:
             self.conn.execute(
                 """
@@ -199,18 +158,8 @@ class DatabaseManager:
             raise DatabaseError(f"Failed to insert book: {e}") from e
 
     def get_book(self, asin: str) -> Book | None:
-        """
-        Get a book by ASIN.
-
-        Args:
-            asin: Book ASIN
-
-        Returns:
-            Book object if found, None otherwise
-        """
         self.connect()
         assert self.conn is not None
-
         cursor = self.conn.execute(
             """
             SELECT asin, title, author, url, image_url, last_annotated_date,
@@ -220,7 +169,6 @@ class DatabaseManager:
             (asin,),
         )
         row = cursor.fetchone()
-
         if not row:
             return None
 
@@ -235,16 +183,9 @@ class DatabaseManager:
             updated_at=datetime.fromisoformat(row[7]) if row[7] else None,
         )
 
-    def get_all_books(self) -> list[Book]:
-        """
-        Get all books from database.
-
-        Returns:
-            List of Book objects, ordered by title
-        """
+    def get_all_books(self, sort_by: str = "title") -> list[Book]:
         self.connect()
         assert self.conn is not None
-
         cursor = self.conn.execute(
             """
             SELECT asin, title, author, url, image_url, last_annotated_date,
@@ -254,71 +195,47 @@ class DatabaseManager:
             """
         )
 
-        books = []
-        for row in cursor.fetchall():
-            books.append(
-                Book(
-                    asin=row[0],
-                    title=row[1],
-                    author=row[2],
-                    url=row[3],
-                    image_url=row[4],
-                    last_annotated_date=datetime.fromisoformat(row[5]) if row[5] else None,
-                    created_at=datetime.fromisoformat(row[6]) if row[6] else None,
-                    updated_at=datetime.fromisoformat(row[7]) if row[7] else None,
-                )
+        books = [
+            Book(
+                asin=row[0],
+                title=row[1],
+                author=row[2],
+                url=row[3],
+                image_url=row[4],
+                last_annotated_date=datetime.fromisoformat(row[5]) if row[5] else None,
+                created_at=datetime.fromisoformat(row[6]) if row[6] else None,
+                updated_at=datetime.fromisoformat(row[7]) if row[7] else None,
             )
+            for row in cursor.fetchall()
+        ]
+
+        if sort_by == "author":
+            books.sort(key=lambda b: b.author)
+        elif sort_by == "date":
+            books.sort(key=lambda b: b.last_annotated_date or datetime.min, reverse=True)
 
         return books
 
     def book_exists(self, asin: str) -> bool:
-        """
-        Check if a book exists.
-
-        Args:
-            asin: Book ASIN to check
-
-        Returns:
-            True if book exists, False otherwise
-        """
         self.connect()
         assert self.conn is not None
-
         cursor = self.conn.execute("SELECT 1 FROM books WHERE asin = ?", (asin,))
         return cursor.fetchone() is not None
 
-    # Sync metadata operations
     def get_last_sync(self) -> datetime | None:
-        """
-        Get last successful sync timestamp.
-
-        Returns:
-            Datetime of last sync, or None if never synced
-        """
         self.connect()
         assert self.conn is not None
-
         cursor = self.conn.execute("SELECT value FROM sync_metadata WHERE key = 'last_sync'")
-        row = cursor.fetchone()
-
-        if row:
+        if row := cursor.fetchone():
             try:
                 return datetime.fromisoformat(row[0])
             except ValueError:
                 return None
-
         return None
 
     def set_last_sync(self, timestamp: datetime) -> None:
-        """
-        Set last sync timestamp.
-
-        Args:
-            timestamp: Sync timestamp
-        """
         self.connect()
         assert self.conn is not None
-
         self.conn.execute(
             """
             INSERT INTO sync_metadata (key, value, updated_at)
@@ -331,22 +248,10 @@ class DatabaseManager:
         )
         self.conn.commit()
 
-    # Highlight operations
     def insert_highlight(self, highlight: Highlight) -> None:
-        """
-        Insert or update a highlight.
-
-        Uses UPSERT logic - if highlight exists, updates it.
-
-        Args:
-            highlight: Highlight object to insert
-
-        Raises:
-            DatabaseError: If insertion fails
-        """
+        """Insert or update a highlight (UPSERT)."""
         self.connect()
         assert self.conn is not None
-
         try:
             self.conn.execute(
                 """
@@ -378,18 +283,9 @@ class DatabaseManager:
             raise DatabaseError(f"Failed to insert highlight: {e}") from e
 
     def get_highlights(self, book_asin: str) -> list[Highlight]:
-        """
-        Get all highlights for a book.
-
-        Args:
-            book_asin: Book ASIN
-
-        Returns:
-            List of Highlight objects, ordered by location
-        """
+        """Get all highlights for a book, ordered by location."""
         self.connect()
         assert self.conn is not None
-
         cursor = self.conn.execute(
             """
             SELECT id, book_asin, text, location, page, note, color,
@@ -406,135 +302,8 @@ class DatabaseManager:
             (book_asin,),
         )
 
-        highlights = []
-        for row in cursor.fetchall():
-            highlights.append(
-                Highlight(
-                    id=row[0],
-                    book_asin=row[1],
-                    text=row[2],
-                    location=row[3],
-                    page=row[4],
-                    note=row[5],
-                    color=HighlightColor(row[6]) if row[6] else None,
-                    created_date=datetime.fromisoformat(row[7]) if row[7] else None,
-                    created_at=datetime.fromisoformat(row[8]) if row[8] else None,
-                )
-            )
-
-        return highlights
-
-    def get_highlight_count(self, book_asin: str) -> int:
-        """
-        Get number of highlights for a book.
-
-        Args:
-            book_asin: Book ASIN
-
-        Returns:
-            Number of highlights
-        """
-        self.connect()
-        assert self.conn is not None
-
-        cursor = self.conn.execute(
-            "SELECT COUNT(*) FROM highlights WHERE book_asin = ?", (book_asin,)
-        )
-        row = cursor.fetchone()
-        return row[0] if row else 0
-
-    def highlight_exists(self, highlight_id: str) -> bool:
-        """
-        Check if a highlight exists.
-
-        Args:
-            highlight_id: Highlight ID to check
-
-        Returns:
-            True if highlight exists, False otherwise
-        """
-        self.connect()
-        assert self.conn is not None
-
-        cursor = self.conn.execute("SELECT 1 FROM highlights WHERE id = ?", (highlight_id,))
-        return cursor.fetchone() is not None
-
-    def delete_highlights(self, highlight_ids: list[str]) -> None:
-        """
-        Delete highlights by IDs.
-
-        Args:
-            highlight_ids: List of highlight IDs to delete
-
-        Raises:
-            DatabaseError: If deletion fails
-        """
-        if not highlight_ids:
-            return
-
-        self.connect()
-        assert self.conn is not None
-
-        try:
-            placeholders = ",".join("?" * len(highlight_ids))
-            self.conn.execute(f"DELETE FROM highlights WHERE id IN ({placeholders})", highlight_ids)
-            self.conn.commit()
-        except sqlite3.Error as e:
-            raise DatabaseError(f"Failed to delete highlights: {e}") from e
-
-    def search_highlights(
-        self, query: str, book_asin: str | None = None
-    ) -> list[tuple[Highlight, Book]]:
-        """
-        Search highlights by text content.
-
-        Args:
-            query: Search query string
-            book_asin: Optional book ASIN to filter results
-
-        Returns:
-            List of tuples (Highlight, Book) matching the query
-        """
-        if not query:
-            return []
-
-        self.connect()
-        assert self.conn is not None
-
-        # Use LIKE for case-insensitive search
-        search_pattern = f"%{query}%"
-
-        if book_asin:
-            sql = """
-                SELECT
-                    h.id, h.book_asin, h.text, h.location, h.page, h.note,
-                    h.color, h.created_date, h.created_at,
-                    b.asin, b.title, b.author, b.url, b.image_url,
-                    b.last_annotated_date, b.created_at, b.updated_at
-                FROM highlights h
-                JOIN books b ON h.book_asin = b.asin
-                WHERE (h.text LIKE ? OR h.note LIKE ?) AND h.book_asin = ?
-                ORDER BY b.title, h.page, h.location
-            """
-            cursor = self.conn.execute(sql, (search_pattern, search_pattern, book_asin))
-        else:
-            sql = """
-                SELECT
-                    h.id, h.book_asin, h.text, h.location, h.page, h.note,
-                    h.color, h.created_date, h.created_at,
-                    b.asin, b.title, b.author, b.url, b.image_url,
-                    b.last_annotated_date, b.created_at, b.updated_at
-                FROM highlights h
-                JOIN books b ON h.book_asin = b.asin
-                WHERE h.text LIKE ? OR h.note LIKE ?
-                ORDER BY b.title, h.page, h.location
-            """
-            cursor = self.conn.execute(sql, (search_pattern, search_pattern))
-
-        results = []
-        for row in cursor.fetchall():
-            # Parse highlight
-            highlight = Highlight(
+        return [
+            Highlight(
                 id=row[0],
                 book_asin=row[1],
                 text=row[2],
@@ -545,19 +314,112 @@ class DatabaseManager:
                 created_date=datetime.fromisoformat(row[7]) if row[7] else None,
                 created_at=datetime.fromisoformat(row[8]) if row[8] else None,
             )
+            for row in cursor.fetchall()
+        ]
 
-            # Parse book
-            book = Book(
-                asin=row[9],
-                title=row[10],
-                author=row[11],
-                url=row[12],
-                image_url=row[13],
-                last_annotated_date=datetime.fromisoformat(row[14]) if row[14] else None,
-                created_at=datetime.fromisoformat(row[15]) if row[15] else None,
-                updated_at=datetime.fromisoformat(row[16]) if row[16] else None,
+    def get_highlight_count(self, book_asin: str) -> int:
+        self.connect()
+        assert self.conn is not None
+        cursor = self.conn.execute("SELECT COUNT(*) FROM highlights WHERE book_asin = ?", (book_asin,))
+        row = cursor.fetchone()
+        return row[0] if row else 0
+
+    def highlight_exists(self, highlight_id: str) -> bool:
+        self.connect()
+        assert self.conn is not None
+        cursor = self.conn.execute("SELECT 1 FROM highlights WHERE id = ?", (highlight_id,))
+        return cursor.fetchone() is not None
+
+    def delete_highlights(self, highlight_ids: list[str]) -> None:
+        if not highlight_ids:
+            return
+        self.connect()
+        assert self.conn is not None
+        try:
+            placeholders = ",".join("?" * len(highlight_ids))
+            self.conn.execute(f"DELETE FROM highlights WHERE id IN ({placeholders})", highlight_ids)
+            self.conn.commit()
+        except sqlite3.Error as e:
+            raise DatabaseError(f"Failed to delete highlights: {e}") from e
+
+    def search_highlights(self, query: str, book_asin: str | None = None) -> list[SearchResult]:
+        """Search highlights by text content."""
+        if not query:
+            return []
+
+        self.connect()
+        assert self.conn is not None
+
+        search_pattern = f"%{query}%"
+        sql = """
+            SELECT
+                h.id, h.book_asin, h.text, h.location, h.page, h.note,
+                h.color, h.created_date, h.created_at,
+                b.asin, b.title, b.author, b.url, b.image_url,
+                b.last_annotated_date, b.created_at, b.updated_at
+            FROM highlights h
+            JOIN books b ON h.book_asin = b.asin
+            WHERE (h.text LIKE ? OR h.note LIKE ?)
+        """
+
+        if book_asin:
+            sql += " AND h.book_asin = ?"
+            sql += " ORDER BY b.title, h.page, h.location"
+            cursor = self.conn.execute(sql, (search_pattern, search_pattern, book_asin))
+        else:
+            sql += " ORDER BY b.title, h.page, h.location"
+            cursor = self.conn.execute(sql, (search_pattern, search_pattern))
+
+        return [
+            SearchResult(
+                highlight=Highlight(
+                    id=row[0],
+                    book_asin=row[1],
+                    text=row[2],
+                    location=row[3],
+                    page=row[4],
+                    note=row[5],
+                    color=HighlightColor(row[6]) if row[6] else None,
+                    created_date=datetime.fromisoformat(row[7]) if row[7] else None,
+                    created_at=datetime.fromisoformat(row[8]) if row[8] else None,
+                ),
+                book=Book(
+                    asin=row[9],
+                    title=row[10],
+                    author=row[11],
+                    url=row[12],
+                    image_url=row[13],
+                    last_annotated_date=datetime.fromisoformat(row[14]) if row[14] else None,
+                    created_at=datetime.fromisoformat(row[15]) if row[15] else None,
+                    updated_at=datetime.fromisoformat(row[16]) if row[16] else None,
+                ),
             )
+            for row in cursor.fetchall()
+        ]
 
-            results.append((highlight, book))
+    def get_all_books_with_counts(self, sort_by: str = "title") -> list[BookWithHighlightCount]:
+        """Get all books with their highlight counts."""
+        books = self.get_all_books(sort_by="title")  # Get unsorted first
+        books_with_counts = [
+            BookWithHighlightCount(book=book, highlight_count=self.get_highlight_count(book.asin))
+            for book in books
+        ]
 
-        return results
+        if sort_by == "author":
+            books_with_counts.sort(key=lambda b: b.book.author)
+        elif sort_by == "date":
+            books_with_counts.sort(key=lambda b: b.book.last_annotated_date or datetime.min, reverse=True)
+
+        return books_with_counts
+
+    def get_statistics(self) -> dict:
+        """Get database statistics."""
+        books = self.get_all_books()
+        total_highlights = sum(self.get_highlight_count(book.asin) for book in books)
+        last_sync = self.get_last_sync()
+
+        return {
+            "total_books": len(books),
+            "total_highlights": total_highlights,
+            "last_sync": last_sync.isoformat() if last_sync else None,
+        }

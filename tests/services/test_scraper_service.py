@@ -7,19 +7,7 @@ import pytest
 import requests
 
 from kindle_sync.models import AmazonRegion, HighlightColor
-from kindle_sync.scraper import KindleScraper, ScraperError
-
-
-@pytest.fixture
-def mock_session():
-    """Create a mock requests session."""
-    return Mock(spec=requests.Session)
-
-
-@pytest.fixture
-def scraper(mock_session):
-    """Create a scraper with mock session."""
-    return KindleScraper(mock_session, AmazonRegion.GLOBAL)
+from kindle_sync.services.scraper_service import KindleScraper, ScraperError
 
 
 class TestScraperInit:
@@ -69,7 +57,7 @@ class TestScrapeBooks:
         assert books[0].image_url == "https://example.com/image.jpg"
         assert books[1].asin == "B07EXAMPLE"
         assert books[1].title == "Another Book"
-        assert books[1].author == "John Doe"  # "Par: " prefix removed
+        assert books[1].author == "John Doe"
 
     def test_scrape_books_empty(self, scraper, mock_session):
         """Test scraping with no books."""
@@ -108,7 +96,7 @@ class TestScrapeBooks:
         mock_session.get.return_value = mock_response
 
         books = scraper.scrape_books()
-        assert len(books) == 0  # Book skipped due to missing title
+        assert len(books) == 0
 
     def test_parse_book_author_prefixes(self, scraper, mock_session):
         """Test that various author prefixes are removed."""
@@ -185,7 +173,6 @@ class TestScrapeHighlights:
 
     def test_scrape_highlights_pagination(self, scraper, mock_session):
         """Test scraping highlights with pagination."""
-        # First page with pagination token
         html_page1 = """
         <html>
             <div class="a-row a-spacing-base">
@@ -198,7 +185,6 @@ class TestScrapeHighlights:
         </html>
         """
 
-        # Second page without pagination token
         html_page2 = """
         <html>
             <div class="a-row a-spacing-base">
@@ -359,11 +345,9 @@ class TestDateParsing:
         """Test parsing common date formats."""
         scraper = KindleScraper(Mock(), AmazonRegion.GLOBAL)
 
-        # ISO format
         date = scraper._parse_date("2021-10-24")
         assert date == datetime(2021, 10, 24)
 
-        # US format
         date = scraper._parse_date("10/24/2021")
         assert date == datetime(2021, 10, 24)
 
@@ -373,7 +357,6 @@ class TestRetryDecorator:
 
     def test_scrape_books_retries_on_failure(self, scraper, mock_session):
         """Test that scrape_books retries on failure."""
-        # First two calls fail, third succeeds
         mock_session.get.side_effect = [
             requests.RequestException("Error 1"),
             requests.RequestException("Error 2"),
@@ -392,5 +375,4 @@ class TestRetryDecorator:
         with pytest.raises(ScraperError):
             scraper.scrape_books()
 
-        # Should have tried 3 times (MAX_RETRIES)
         assert mock_session.get.call_count == 3

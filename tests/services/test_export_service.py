@@ -1,73 +1,13 @@
 """Tests for export functionality."""
 
 import json
-import tempfile
 from datetime import datetime
 from pathlib import Path
-from unittest.mock import Mock
 
 import pytest
 
-from kindle_sync.exporter import Exporter, ExportError
 from kindle_sync.models import Book, ExportFormat, Highlight, HighlightColor
-
-
-@pytest.fixture
-def temp_dir():
-    """Create a temporary directory for exports."""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        yield Path(tmpdir)
-
-
-@pytest.fixture
-def mock_db():
-    """Create a mock database."""
-    db = Mock()
-    return db
-
-
-@pytest.fixture
-def sample_book():
-    """Create a sample book."""
-    return Book(
-        asin="B01N5AX61W",
-        title="Atomic Habits",
-        author="James Clear",
-        url="https://www.amazon.com/dp/B01N5AX61W",
-        image_url="https://example.com/image.jpg",
-        last_annotated_date=datetime(2023, 10, 15),
-        created_at=datetime.now(),
-        updated_at=datetime.now(),
-    )
-
-
-@pytest.fixture
-def sample_highlights():
-    """Create sample highlights."""
-    return [
-        Highlight(
-            id="9f2e",
-            book_asin="B01N5AX61W",
-            text="You do not rise to the level of your goals.",
-            location="254-267",
-            page="12",
-            note="Important concept",
-            color=HighlightColor.YELLOW,
-            created_date=datetime(2023, 10, 15),
-            created_at=datetime.now(),
-        ),
-        Highlight(
-            id="abc1",
-            book_asin="B01N5AX61W",
-            text="Habits are the compound interest of self-improvement.",
-            location="300-310",
-            page="15",
-            note=None,
-            color=HighlightColor.BLUE,
-            created_date=datetime(2023, 10, 16),
-            created_at=datetime.now(),
-        ),
-    ]
+from kindle_sync.services.export_service import Exporter, ExportError
 
 
 @pytest.fixture
@@ -111,7 +51,6 @@ class TestMarkdownExport:
         assert Path(file_path).exists()
         content = Path(file_path).read_text()
 
-        # Check that key elements are in the output
         assert "Atomic Habits" in content
         assert "James Clear" in content
         assert "B01N5AX61W" in content
@@ -128,7 +67,6 @@ class TestMarkdownExport:
         mock_db.get_book.return_value = sample_book
         mock_db.get_highlights.return_value = sample_highlights
 
-        # Create a simple custom template
         template_file = Path(exporter.jinja_env.loader.searchpath[0]) / "custom.md.j2"
         template_file.write_text("# {{ book.title }}\n\n{{ total_highlights }} highlights")
 
@@ -147,7 +85,6 @@ class TestMarkdownExport:
         mock_db.get_book.return_value = sample_book
         mock_db.get_highlights.return_value = sample_highlights
 
-        # Request non-existent template, should use fallback
         file_path = exporter.export_book(
             sample_book.asin, temp_dir, ExportFormat.MARKDOWN, template="nonexistent"
         )
@@ -222,10 +159,7 @@ class TestCSVExport:
 
         content = Path(file_path).read_text()
 
-        # Check header
         assert "Book Title,Author,ASIN,Highlight,Location,Page,Note,Color,Date" in content
-
-        # Check data rows
         assert "Atomic Habits" in content
         assert "James Clear" in content
         assert "You do not rise to the level of your goals" in content
@@ -254,11 +188,10 @@ class TestCSVExport:
 
         content = Path(file_path).read_text()
         lines = content.strip().split("\n")
-        assert len(lines) == 2  # Header + 1 data row
+        assert len(lines) == 2
 
-        # Check that empty fields are present
         data_row = lines[1]
-        assert ",," in data_row  # Consecutive commas for empty fields
+        assert ",," in data_row
 
 
 class TestFilenameGeneration:
@@ -294,7 +227,6 @@ class TestFilenameGeneration:
 
         filename = exporter._generate_filename(book, ExportFormat.MARKDOWN)
 
-        # Should be sanitized
         assert "/" not in filename
         assert ":" not in filename
         assert filename.endswith(".md")
@@ -303,7 +235,7 @@ class TestFilenameGeneration:
         """Test filename generation with very long title."""
         book = Book(
             asin="TEST",
-            title="A" * 100,  # Very long title
+            title="A" * 100,
             author="Author",
             created_at=datetime.now(),
             updated_at=datetime.now(),
@@ -311,8 +243,7 @@ class TestFilenameGeneration:
 
         filename = exporter._generate_filename(book, ExportFormat.MARKDOWN)
 
-        # Should be truncated
-        assert len(filename) < 60  # Reasonable length
+        assert len(filename) < 60
 
 
 class TestExportAll:
@@ -380,7 +311,6 @@ class TestExportAll:
 
         files = exporter.export_all(str(temp_dir), ExportFormat.MARKDOWN)
 
-        # Should have exported only the successful one
         assert len(files) == 1
 
 
@@ -399,6 +329,5 @@ class TestExportErrors:
         mock_db.get_book.return_value = sample_book
         mock_db.get_highlights.return_value = []
 
-        # This should not happen in practice due to enum, but test error handling
         with pytest.raises(KeyError):
             exporter.export_book(sample_book.asin, temp_dir, "invalid_format")

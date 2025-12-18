@@ -3,10 +3,11 @@
 from datetime import datetime
 from pathlib import Path
 
-from flask import Flask, abort, g, render_template, request
+from flask import Flask, abort, g, jsonify, render_template, request
 
-from kindle_sync.database import DatabaseManager
-from kindle_sync.models import HighlightColor
+from kindle_sync.models import ExportFormat, HighlightColor
+from kindle_sync.services import AuthService, ExportService, SyncService
+from kindle_sync.services.database_service import DatabaseManager
 
 
 def create_app(db_path: str | None = None) -> Flask:
@@ -94,6 +95,10 @@ def create_app(db_path: str | None = None) -> Flask:
             "color_class": color_class,
         }
 
+    # ============================================================================
+    # Web UI Routes
+    # ============================================================================
+
     @app.route("/")
     def index():
         """Show all books with highlight counts."""
@@ -154,10 +159,10 @@ def create_app(db_path: str | None = None) -> Flask:
 
         # Group results by book for better display
         books_results = {}
-        for highlight, book in results:
-            if book.asin not in books_results:
-                books_results[book.asin] = {"book": book, "highlights": []}
-            books_results[book.asin]["highlights"].append(highlight)
+        for result in results:
+            if result.book.asin not in books_results:
+                books_results[result.book.asin] = {"book": result.book, "highlights": []}
+            books_results[result.book.asin]["highlights"].append(result.highlight)
 
         return render_template(
             "search.html",
@@ -165,6 +170,212 @@ def create_app(db_path: str | None = None) -> Flask:
             results=list(books_results.values()),
             total_results=len(results),
             book_filter=book_filter,
+        )
+
+    # ============================================================================
+    # API Routes
+    # ============================================================================
+
+    @app.route("/api/status")
+    def api_status():
+        """Get authentication and sync status."""
+        status = AuthService.check_status(app.config["DB_PATH"])
+        return jsonify(status)
+
+    @app.route("/api/auth/logout", methods=["POST"])
+    def api_logout():
+        """Clear stored session."""
+        result = AuthService.logout(app.config["DB_PATH"])
+        return jsonify(
+            {
+                "success": result.success,
+                "message": result.message,
+                "error": result.error,
+            }
+        )
+
+    @app.route("/api/sync", methods=["POST"])
+    def api_sync():
+        """Trigger sync operation."""
+        data = request.get_json() or {}
+        full = data.get("full", False)
+        book_asins = data.get("books")
+
+        # Perform sync
+        result = SyncService.sync(app.config["DB_PATH"], full=full, book_asins=book_asins)
+
+        # Convert book details to dict
+        book_details = [
+            {
+                "asin": detail.asin,
+                "title": detail.title,
+                "author": detail.author,
+                "new_highlights": detail.new_highlights,
+                "deleted_highlights": detail.deleted_highlights,
+                "total_highlights": detail.total_highlights,
+            }
+            for detail in result.book_details
+        ]
+
+        return jsonify(
+            {
+                "success": result.success,
+                "message": result.message,
+                "data": {
+                    "books_synced": result.books_synced,
+                    "new_highlights": result.new_highlights,
+                    "deleted_highlights": result.deleted_highlights,
+                    "books": book_details,
+                },
+                "error": result.error,
+            }
+        )
+
+    @app.route("/api/export", methods=["POST"])
+    def api_export():
+        """Export highlights."""
+        data = request.get_json() or {}
+        output_dir = data.get("output_dir")
+        format_str = data.get("format", "markdown").upper()
+        template = data.get("template", "default")
+        book_asins = data.get("books")
+
+        if not output_dir:
+            return jsonify({"success": False, "message": "output_dir is required", "error": "Missing output_dir parameter"}), 400
+
+        try:
+            export_format = ExportFormat[format_str]
+        except KeyError:
+            return jsonify(
+                {
+                    "success": False,
+                    "message": "Invalid format",
+                    "error": f"Format must be one of: {', '.join(f.name for f in ExportFormat)}",
+                }
+            ), 400
+
+        # Perform export
+        if book_asins:
+            result = ExportService.export_books(
+                app.config["DB_PATH"], book_asins, output_dir, export_format, template
+            )
+        else:
+            result = ExportService.export_all(
+                app.config["DB_PATH"], output_dir, export_format, template
+            )
+
+        return jsonify(
+            {
+                "success": result.success,
+                "message": result.message,
+                "data": {"files_created": result.files_created},
+                "error": result.error,
+            }
+        )
+
+    @app.route("/api/books")
+    def api_books():
+        """Get all books with highlight counts."""
+        db = get_db()
+        sort_by = request.args.get("sort", "title")
+        books_with_counts = db.get_all_books_with_counts(sort_by)
+
+        return jsonify(
+            {
+                "success": True,
+                "data": [
+                    {
+                        "asin": item.book.asin,
+                        "title": item.book.title,
+                        "author": item.book.author,
+                        "url": item.book.url,
+                        "image_url": item.book.image_url,
+                        "last_annotated_date": (
+                            item.book.last_annotated_date.isoformat()
+                            if item.book.last_annotated_date
+                            else None
+                        ),
+                        "highlight_count": item.highlight_count,
+                    }
+                    for item in books_with_counts
+                ],
+            }
+        )
+
+    @app.route("/api/books/<asin>")
+    def api_book(asin: str):
+        """Get a specific book with its highlights."""
+        db = get_db()
+        book = db.get_book(asin)
+        if not book:
+            return jsonify({"success": False, "message": "Book not found", "error": f"No book with ASIN {asin}"}), 404
+
+        highlights = db.get_highlights(asin)
+
+        return jsonify(
+            {
+                "success": True,
+                "data": {
+                    "book": {
+                        "asin": book.asin,
+                        "title": book.title,
+                        "author": book.author,
+                        "url": book.url,
+                        "image_url": book.image_url,
+                        "last_annotated_date": (
+                            book.last_annotated_date.isoformat() if book.last_annotated_date else None
+                        ),
+                    },
+                    "highlights": [
+                        {
+                            "id": h.id,
+                            "text": h.text,
+                            "location": h.location,
+                            "page": h.page,
+                            "note": h.note,
+                            "color": h.color.value if h.color else None,
+                            "created_date": h.created_date.isoformat() if h.created_date else None,
+                        }
+                        for h in highlights
+                    ],
+                },
+            }
+        )
+
+    @app.route("/api/search")
+    def api_search():
+        """Search highlights."""
+        query = request.args.get("q", "").strip()
+        book_asin = request.args.get("book")
+
+        if not query:
+            return jsonify({"success": False, "message": "Query is required", "error": "Missing q parameter"}), 400
+
+        db = get_db()
+        results = db.search_highlights(query, book_asin)
+
+        return jsonify(
+            {
+                "success": True,
+                "data": [
+                    {
+                        "highlight": {
+                            "id": result.highlight.id,
+                            "text": result.highlight.text,
+                            "location": result.highlight.location,
+                            "page": result.highlight.page,
+                            "note": result.highlight.note,
+                            "color": result.highlight.color.value if result.highlight.color else None,
+                        },
+                        "book": {
+                            "asin": result.book.asin,
+                            "title": result.book.title,
+                            "author": result.book.author,
+                        },
+                    }
+                    for result in results
+                ],
+            }
         )
 
     return app

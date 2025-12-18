@@ -1,17 +1,15 @@
 """Command-line interface for Kindle Highlights Sync."""
 
-from datetime import datetime
+import json
 
 import click
 from rich.console import Console
 from rich.table import Table
 
-from kindle_sync.auth import AuthManager
 from kindle_sync.config import Config
-from kindle_sync.database import DatabaseManager
-from kindle_sync.exporter import Exporter
 from kindle_sync.models import AmazonRegion, ExportFormat
-from kindle_sync.scraper import KindleScraper
+from kindle_sync.services import AuthService, ExportService, SyncService
+from kindle_sync.services.database_service import DatabaseManager
 
 console = Console()
 
@@ -36,7 +34,7 @@ def main(ctx: click.Context, db: str | None, verbose: bool, quiet: bool) -> None
     # Initialize database
     db_manager = DatabaseManager(db_path)
     db_manager.init_schema()
-    ctx.obj["db"] = db_manager
+    db_manager.close()
 
 
 @main.command()
@@ -53,70 +51,69 @@ def main(ctx: click.Context, db: str | None, verbose: bool, quiet: bool) -> None
 @click.pass_context
 def login(ctx: click.Context, region: str, headless: bool) -> None:
     """Authenticate with Amazon and save session."""
-    db = ctx.obj["db"]
+    db_path = ctx.obj["db_path"]
 
     # Convert region string to enum
     region_enum = AmazonRegion(region.lower())
 
-    # Create auth manager
-    auth = AuthManager(db, region_enum)
+    # Perform login using service
+    result = AuthService.login(db_path, region_enum, headless)
 
-    # Check if already authenticated
-    if auth.is_authenticated():
-        console.print("✓ Already authenticated", style="green")
-        click.confirm("Do you want to re-authenticate?", abort=True)
-
-    # Perform login
-    try:
-        success = auth.login(headless=headless)
-        if success:
-            console.print("✓ Login successful!", style="green")
-        else:
-            console.print("✗ Login failed", style="red")
-            raise click.Abort()
-    except Exception as e:
-        console.print(f"✗ Error: {e}", style="red")
-        raise click.Abort() from e
+    if result.success:
+        console.print(f"✓ {result.message}", style="green")
+        if result.data and result.data.get("already_authenticated"):
+            if click.confirm("Do you want to re-authenticate?"):
+                # Re-login by logging out first
+                AuthService.logout(db_path)
+                result = AuthService.login(db_path, region_enum, headless)
+                if result.success:
+                    console.print("✓ Re-authentication successful!", style="green")
+                else:
+                    console.print(f"✗ {result.message}: {result.error}", style="red")
+                    raise click.Abort()
+    else:
+        console.print(f"✗ {result.message}: {result.error}", style="red")
+        raise click.Abort()
 
 
 @main.command()
 @click.pass_context
 def logout(ctx: click.Context) -> None:
     """Clear stored session."""
-    db = ctx.obj["db"]
+    db_path = ctx.obj["db_path"]
 
-    # We don't know which region, so use default
-    auth = AuthManager(db, AmazonRegion.GLOBAL)
-    auth.logout()
+    result = AuthService.logout(db_path)
 
-    console.print("✓ Session cleared", style="green")
+    if result.success:
+        console.print(f"✓ {result.message}", style="green")
+    else:
+        console.print(f"✗ {result.message}: {result.error}", style="red")
 
 
 @main.command()
 @click.pass_context
 def status(ctx: click.Context) -> None:
     """Show sync status and statistics."""
-    db = ctx.obj["db"]
+    db_path = ctx.obj["db_path"]
 
-    # Check authentication
-    auth = AuthManager(db, AmazonRegion.GLOBAL)
-    is_auth = auth.is_authenticated()
-
-    # Get stats
-    books = db.get_all_books()
-    last_sync = db.get_last_sync()
-
-    # Calculate total highlights
-    total_highlights = sum(db.get_highlight_count(book.asin) for book in books)
+    # Get status using service
+    status_data = AuthService.check_status(db_path)
 
     console.print("\n[bold]Kindle Highlights Sync - Status[/bold]\n")
-    console.print(f"Database: {ctx.obj['db_path']}")
-    console.print(f"Authentication: {'✓ Active' if is_auth else '✗ Not authenticated'}")
-    console.print(f"Total Books: {len(books)}")
-    console.print(f"Total Highlights: {total_highlights}")
+    console.print(f"Database: {db_path}")
     console.print(
-        f"Last Sync: {last_sync.strftime('%Y-%m-%d %H:%M:%S') if last_sync else 'Never'}\n"
+        f"Authentication: {'✓ Active' if status_data['authenticated'] else '✗ Not authenticated'}"
     )
+    if status_data["region"]:
+        console.print(f"Region: {status_data['region']}")
+    console.print(f"Total Books: {status_data['total_books']}")
+    console.print(f"Total Highlights: {status_data['total_highlights']}")
+
+    last_sync = status_data["last_sync_datetime"]
+    if last_sync:
+        console.print(f"Last Sync: {last_sync.strftime('%Y-%m-%d %H:%M:%S')}\n")
+    else:
+        console.print("Last Sync: Never\n")
 
 
 @main.command()
@@ -125,95 +122,41 @@ def status(ctx: click.Context) -> None:
 @click.pass_context
 def sync(ctx: click.Context, full: bool, books: str | None) -> None:
     """Sync books and highlights from Amazon."""
-    db = ctx.obj["db"]
-
-    # Get region from session
-    region_str = db.get_session("region") or "global"
-    region = AmazonRegion(region_str)
-
-    # Create auth manager and get session
-    auth = AuthManager(db, region)
-
-    if not auth.is_authenticated():
-        console.print("✗ Not authenticated. Please run 'login' first.", style="red")
-        raise click.Abort()
-
-    session = auth.get_session()
-    scraper = KindleScraper(session, region)
+    db_path = ctx.obj["db_path"]
 
     console.print("[bold]Starting sync...[/bold]\n")
 
     # Parse specific books if provided
-    specific_asins = None
+    book_asins = None
     if books:
-        specific_asins = [asin.strip() for asin in books.split(",")]
+        book_asins = [asin.strip() for asin in books.split(",")]
 
-    try:
-        # Scrape books
-        console.print("Fetching books from Amazon...")
-        scraped_books = scraper.scrape_books()
+    # Progress callback for CLI
+    def progress_callback(message: str) -> None:
+        console.print(message)
 
-        if not scraped_books:
-            console.print("✗ No books found", style="yellow")
-            return
+    # Perform sync using service
+    result = SyncService.sync(db_path, full, book_asins, progress_callback)
 
-        # Filter if specific books requested
-        if specific_asins:
-            scraped_books = [b for b in scraped_books if b.asin in specific_asins]
-            if not scraped_books:
-                console.print(f"✗ None of the specified books found: {books}", style="red")
-                return
+    if result.success:
+        console.print(f"\n✓ {result.message}!", style="green")
+        console.print(f"  Books synced: {result.books_synced}")
+        console.print(f"  New highlights: {result.new_highlights}")
+        if result.deleted_highlights > 0:
+            console.print(f"  Deleted highlights: {result.deleted_highlights}")
 
-        console.print(f"Found {len(scraped_books)} book(s)")
-
-        # Save books to database
-        for book in scraped_books:
-            db.insert_book(book)
-
-        # Scrape highlights for each book
-        total_new_highlights = 0
-        for i, book in enumerate(scraped_books, 1):
-            console.print(f"\n[{i}/{len(scraped_books)}] {book.title} by {book.author}")
-            console.print("  Fetching highlights...")
-
-            highlights = scraper.scrape_highlights(book)
-
-            # Get current highlight IDs from database
-            existing_highlights = db.get_highlights(book.asin)
-            existing_ids = {h.id for h in existing_highlights}
-            scraped_ids = {h.id for h in highlights}
-
-            # Save/update highlights
-            new_count = 0
-            for highlight in highlights:
-                exists = highlight.id in existing_ids
-                db.insert_highlight(highlight)  # Always insert (will UPSERT)
-                if not exists:
-                    new_count += 1
-
-            # Delete highlights that no longer exist on Amazon
-            deleted_ids = existing_ids - scraped_ids
-            deleted_count = len(deleted_ids)
-            if deleted_ids:
-                db.delete_highlights(list(deleted_ids))
-
-            total_new_highlights += new_count
-            status = f"  ✓ {new_count} new"
-            if deleted_count > 0:
-                status += f", {deleted_count} deleted"
-            status += f" ({len(highlights)} total)"
-            console.print(status)
-
-        # Update last sync time
-        db.set_last_sync(datetime.now())
-
-        console.print(
-            f"\n✓ Sync complete! {total_new_highlights} new highlight(s) synced.", style="green"
-        )
-
-    except Exception as e:
-        console.print(f"\n✗ Sync failed: {e}", style="red")
-        raise click.Abort() from e
+        # Show details if verbose
+        if ctx.obj.get("verbose") and result.book_details:
+            console.print("\n[bold]Details:[/bold]")
+            for detail in result.book_details:
+                status = f"  {detail.title}: {detail.new_highlights} new"
+                if detail.deleted_highlights > 0:
+                    status += f", {detail.deleted_highlights} deleted"
+                status += f" ({detail.total_highlights} total)"
+                console.print(status)
+    else:
+        console.print(f"\n✗ {result.message}: {result.error}", style="red")
+        raise click.Abort()
 
 
 @main.command()
@@ -231,41 +174,29 @@ def export(
     ctx: click.Context, output_dir: str, format: str, template: str, books: str | None
 ) -> None:
     """Export highlights to files."""
-    db = ctx.obj["db"]
+    db_path = ctx.obj["db_path"]
 
     # Convert format string to enum
     export_format = ExportFormat[format.upper()]
 
-    # Create exporter
-    exporter = Exporter(db)
-
     console.print(f"[bold]Exporting to {output_dir}...[/bold]\n")
 
-    try:
-        if books:
-            # Export specific books
-            asins = [asin.strip() for asin in books.split(",")]
-            created_files = []
-            for asin in asins:
-                book = db.get_book(asin)
-                if not book:
-                    console.print(f"✗ Book with ASIN {asin} not found", style="yellow")
-                    continue
+    # Export using service
+    if books:
+        # Export specific books
+        asins = [asin.strip() for asin in books.split(",")]
+        result = ExportService.export_books(db_path, asins, output_dir, export_format, template)
+    else:
+        # Export all books
+        result = ExportService.export_all(db_path, output_dir, export_format, template)
 
-                file_path = exporter.export_book(asin, output_dir, export_format, template)
-                created_files.append(file_path)
-                console.print(f"✓ {book.title} → {file_path}")
-        else:
-            # Export all books
-            created_files = exporter.export_all(output_dir, export_format, template)
-            for file_path in created_files:
-                console.print(f"✓ {file_path}")
-
-        console.print(f"\n✓ Exported {len(created_files)} file(s)", style="green")
-
-    except Exception as e:
-        console.print(f"\n✗ Export failed: {e}", style="red")
-        raise click.Abort() from e
+    if result.success:
+        for file_path in result.files_created:
+            console.print(f"✓ {file_path}")
+        console.print(f"\n✓ {result.message}", style="green")
+    else:
+        console.print(f"\n✗ {result.message}: {result.error}", style="red")
+        raise click.Abort()
 
 
 @main.command(name="list")
@@ -284,35 +215,31 @@ def export(
 @click.pass_context
 def list_books(ctx: click.Context, sort: str, format: str) -> None:
     """List all books in database."""
-    db = ctx.obj["db"]
+    db_path = ctx.obj["db_path"]
 
-    books = db.get_all_books()
+    db = DatabaseManager(db_path)
+    db.init_schema()
+    books_with_counts = db.get_all_books_with_counts(sort)
+    db.close()
 
-    if not books:
+    if not books_with_counts:
         console.print("No books found in database", style="yellow")
         return
 
-    # Sort books
-    if sort == "author":
-        books.sort(key=lambda b: b.author)
-    elif sort == "date":
-        books.sort(key=lambda b: b.last_annotated_date or datetime.min, reverse=True)
-    # Default is already sorted by title
-
     if format == "json":
-        import json
-
         output = [
             {
-                "asin": book.asin,
-                "title": book.title,
-                "author": book.author,
-                "highlights": db.get_highlight_count(book.asin),
+                "asin": item.book.asin,
+                "title": item.book.title,
+                "author": item.book.author,
+                "highlights": item.highlight_count,
                 "last_annotated": (
-                    book.last_annotated_date.isoformat() if book.last_annotated_date else None
+                    item.book.last_annotated_date.isoformat()
+                    if item.book.last_annotated_date
+                    else None
                 ),
             }
-            for book in books
+            for item in books_with_counts
         ]
         console.print(json.dumps(output, indent=2))
     else:
@@ -324,12 +251,19 @@ def list_books(ctx: click.Context, sort: str, format: str) -> None:
         table.add_column("Highlights", justify="right", style="green")
         table.add_column("Last Annotated", style="magenta")
 
-        for book in books:
-            highlight_count = db.get_highlight_count(book.asin)
+        for item in books_with_counts:
             last_date = (
-                book.last_annotated_date.strftime("%Y-%m-%d") if book.last_annotated_date else "—"
+                item.book.last_annotated_date.strftime("%Y-%m-%d")
+                if item.book.last_annotated_date
+                else "—"
             )
-            table.add_row(book.asin, book.title, book.author, str(highlight_count), last_date)
+            table.add_row(
+                item.book.asin,
+                item.book.title,
+                item.book.author,
+                str(item.highlight_count),
+                last_date,
+            )
 
         console.print(table)
 
@@ -339,14 +273,18 @@ def list_books(ctx: click.Context, sort: str, format: str) -> None:
 @click.pass_context
 def show(ctx: click.Context, asin: str) -> None:
     """Show details for a specific book."""
-    db = ctx.obj["db"]
+    db_path = ctx.obj["db_path"]
 
+    db = DatabaseManager(db_path)
+    db.init_schema()
     book = db.get_book(asin)
     if not book:
+        db.close()
         console.print(f"✗ Book with ASIN {asin} not found", style="red")
         raise click.Abort()
 
-    highlights = db.get_highlights(book.asin)
+    highlights = db.get_highlights(asin)
+    db.close()
 
     console.print(f"\n[bold]{book.title}[/bold]")
     console.print(f"Author: {book.author}")

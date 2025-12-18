@@ -3,11 +3,14 @@
 import tempfile
 from datetime import datetime
 from pathlib import Path
+from unittest.mock import Mock
 
 import pytest
+import requests
 
-from kindle_sync.database import DatabaseManager
-from kindle_sync.models import Book, Highlight, HighlightColor
+from kindle_sync.models import AmazonRegion, Book, Highlight, HighlightColor
+from kindle_sync.services.database_service import DatabaseManager
+from kindle_sync.services.scraper_service import KindleScraper
 
 
 @pytest.fixture
@@ -18,7 +21,6 @@ def temp_db_path():
 
     yield db_path
 
-    # Clean up
     Path(db_path).unlink(missing_ok=True)
 
 
@@ -29,6 +31,13 @@ def temp_db(temp_db_path):
     db.init_schema()
     yield db
     db.close()
+
+
+@pytest.fixture
+def temp_dir():
+    """Create a temporary directory for testing."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        yield Path(tmpdir)
 
 
 @pytest.fixture
@@ -60,3 +69,50 @@ def sample_highlight():
         note="Important concept about systems vs goals",
         created_at=datetime.now(),
     )
+
+
+@pytest.fixture
+def sample_highlights():
+    """Create sample highlights for testing."""
+    return [
+        Highlight(
+            id="9f2e",
+            book_asin="B01N5AX61W",
+            text="You do not rise to the level of your goals.",
+            location="254-267",
+            page="12",
+            note="Important concept",
+            color=HighlightColor.YELLOW,
+            created_date=datetime(2023, 10, 15),
+            created_at=datetime.now(),
+        ),
+        Highlight(
+            id="abc1",
+            book_asin="B01N5AX61W",
+            text="Habits are the compound interest of self-improvement.",
+            location="300-310",
+            page="15",
+            note=None,
+            color=HighlightColor.BLUE,
+            created_date=datetime(2023, 10, 16),
+            created_at=datetime.now(),
+        ),
+    ]
+
+
+@pytest.fixture
+def mock_db():
+    """Create a mock database for testing."""
+    return Mock()
+
+
+@pytest.fixture
+def mock_session():
+    """Create a mock requests session for testing."""
+    return Mock(spec=requests.Session)
+
+
+@pytest.fixture
+def scraper(mock_session):
+    """Create a scraper with mock session for testing."""
+    return KindleScraper(mock_session, AmazonRegion.GLOBAL)
