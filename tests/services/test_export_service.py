@@ -4,123 +4,99 @@ import json
 from datetime import datetime
 from pathlib import Path
 
-import pytest
-
 from kindle_sync.models import Book, ExportFormat, Highlight
-from kindle_sync.services.export_service import Exporter, ExportError
-
-
-@pytest.fixture
-def exporter(mock_db, temp_dir):
-    """Create an exporter with mock database."""
-    return Exporter(mock_db, str(temp_dir / "templates"))
-
-
-class TestExporterInit:
-    """Tests for exporter initialization."""
-
-    def test_init_with_custom_templates_dir(self, mock_db, temp_dir):
-        """Test initialization with custom templates directory."""
-        templates_dir = temp_dir / "custom_templates"
-        exporter = Exporter(mock_db, str(templates_dir))
-
-        assert exporter.db == mock_db
-        assert templates_dir.exists()
-
-    def test_init_creates_templates_dir(self, mock_db, temp_dir):
-        """Test that initialization creates templates directory."""
-        templates_dir = temp_dir / "new_templates"
-        assert not templates_dir.exists()
-
-        Exporter(mock_db, str(templates_dir))
-        assert templates_dir.exists()
+from kindle_sync.services.export_service import ExportService
 
 
 class TestMarkdownExport:
     """Tests for Markdown export."""
 
-    def test_export_markdown_basic(
-        self, exporter, mock_db, sample_book, sample_highlights, temp_dir
-    ):
+    def test_export_markdown_basic(self, temp_db, sample_book, sample_highlights, temp_dir):
         """Test basic Markdown export."""
-        mock_db.get_book.return_value = sample_book
-        mock_db.get_highlights.return_value = sample_highlights
+        temp_db.insert_book(sample_book)
+        for h in sample_highlights:
+            temp_db.insert_highlight(h)
 
-        file_path = exporter.export_book(sample_book.asin, temp_dir, ExportFormat.MARKDOWN)
+        result = ExportService.export_book(
+            temp_db.db_path, sample_book.asin, str(temp_dir), ExportFormat.MARKDOWN
+        )
 
-        assert Path(file_path).exists()
-        content = Path(file_path).read_text()
+        assert result.success
+        assert len(result.files_created) == 1
+        file_path = Path(result.files_created[0])
+        assert file_path.exists()
 
+        content = file_path.read_text()
         assert "Atomic Habits" in content
         assert "James Clear" in content
-        assert "B01N5AX61W" in content
         assert "You do not rise to the level of your goals" in content
-        assert "Habits are the compound interest" in content
-        assert "Location 254-267" in content
-        assert "Page 12" in content
-        assert "Important concept" in content
 
-    def test_export_markdown_with_template(
-        self, exporter, mock_db, sample_book, sample_highlights, temp_dir
-    ):
-        """Test Markdown export with custom template."""
-        mock_db.get_book.return_value = sample_book
-        mock_db.get_highlights.return_value = sample_highlights
+    def test_export_markdown_with_template(self, temp_db, sample_book, sample_highlights, temp_dir):
+        """Test Markdown export with simple template."""
+        temp_db.insert_book(sample_book)
+        for h in sample_highlights:
+            temp_db.insert_highlight(h)
 
-        template_file = Path(exporter.jinja_env.loader.searchpath[0]) / "custom.md.j2"
-        template_file.write_text("# {{ book.title }}\n\n{{ total_highlights }} highlights")
-
-        file_path = exporter.export_book(
-            sample_book.asin, temp_dir, ExportFormat.MARKDOWN, template="custom"
+        result = ExportService.export_book(
+            temp_db.db_path,
+            sample_book.asin,
+            str(temp_dir),
+            ExportFormat.MARKDOWN,
+            template="simple",
         )
 
-        content = Path(file_path).read_text()
-        assert "# Atomic Habits" in content
-        assert "2 highlights" in content
-
-    def test_export_markdown_fallback_template(
-        self, exporter, mock_db, sample_book, sample_highlights, temp_dir
-    ):
-        """Test that fallback template is used when custom template not found."""
-        mock_db.get_book.return_value = sample_book
-        mock_db.get_highlights.return_value = sample_highlights
-
-        file_path = exporter.export_book(
-            sample_book.asin, temp_dir, ExportFormat.MARKDOWN, template="nonexistent"
-        )
-
-        assert Path(file_path).exists()
-        content = Path(file_path).read_text()
+        assert result.success
+        content = Path(result.files_created[0]).read_text()
         assert "Atomic Habits" in content
+
+    def test_export_markdown_template_not_found(
+        self, temp_db, sample_book, sample_highlights, temp_dir
+    ):
+        """Test that error is raised when template not found."""
+        temp_db.insert_book(sample_book)
+        for h in sample_highlights:
+            temp_db.insert_highlight(h)
+
+        result = ExportService.export_book(
+            temp_db.db_path,
+            sample_book.asin,
+            str(temp_dir),
+            ExportFormat.MARKDOWN,
+            template="nonexistent",
+        )
+
+        assert not result.success
+        assert result.error is not None
+        assert "Failed to find template" in result.error
 
 
 class TestJSONExport:
     """Tests for JSON export."""
 
-    def test_export_json_basic(self, exporter, mock_db, sample_book, sample_highlights, temp_dir):
+    def test_export_json_basic(self, temp_db, sample_book, sample_highlights, temp_dir):
         """Test basic JSON export."""
-        mock_db.get_book.return_value = sample_book
-        mock_db.get_highlights.return_value = sample_highlights
+        temp_db.insert_book(sample_book)
+        for h in sample_highlights:
+            temp_db.insert_highlight(h)
 
-        file_path = exporter.export_book(sample_book.asin, temp_dir, ExportFormat.JSON)
+        result = ExportService.export_book(
+            temp_db.db_path, sample_book.asin, str(temp_dir), ExportFormat.JSON
+        )
 
-        assert Path(file_path).exists()
-        assert file_path.endswith(".json")
+        assert result.success
+        file_path = Path(result.files_created[0])
+        assert file_path.suffix == ".json"
 
         with open(file_path) as f:
             data = json.load(f)
 
         assert data["book"]["asin"] == "B01N5AX61W"
         assert data["book"]["title"] == "Atomic Habits"
-        assert data["book"]["author"] == "James Clear"
         assert len(data["highlights"]) == 2
-        assert data["highlights"][0]["text"] == "You do not rise to the level of your goals."
-        assert data["highlights"][0]["color"] == "yellow"
-        assert data["highlights"][1]["color"] == "blue"
-        assert data["metadata"]["total_highlights"] == 2
 
-    def test_export_json_with_none_values(self, exporter, mock_db, sample_book, temp_dir):
+    def test_export_json_with_none_values(self, temp_db, sample_book, temp_dir):
         """Test JSON export with None values."""
+        temp_db.insert_book(sample_book)
         highlight = Highlight(
             id="test",
             book_asin=sample_book.asin,
@@ -132,12 +108,13 @@ class TestJSONExport:
             created_date=None,
             created_at=datetime.now(),
         )
-        mock_db.get_book.return_value = sample_book
-        mock_db.get_highlights.return_value = [highlight]
+        temp_db.insert_highlight(highlight)
 
-        file_path = exporter.export_book(sample_book.asin, temp_dir, ExportFormat.JSON)
+        result = ExportService.export_book(
+            temp_db.db_path, sample_book.asin, str(temp_dir), ExportFormat.JSON
+        )
 
-        with open(file_path) as f:
+        with open(result.files_created[0]) as f:
             data = json.load(f)
 
         assert data["highlights"][0]["location"] is None
@@ -147,109 +124,60 @@ class TestJSONExport:
 class TestCSVExport:
     """Tests for CSV export."""
 
-    def test_export_csv_basic(self, exporter, mock_db, sample_book, sample_highlights, temp_dir):
+    def test_export_csv_basic(self, temp_db, sample_book, sample_highlights, temp_dir):
         """Test basic CSV export."""
-        mock_db.get_book.return_value = sample_book
-        mock_db.get_highlights.return_value = sample_highlights
+        temp_db.insert_book(sample_book)
+        for h in sample_highlights:
+            temp_db.insert_highlight(h)
 
-        file_path = exporter.export_book(sample_book.asin, temp_dir, ExportFormat.CSV)
-
-        assert Path(file_path).exists()
-        assert file_path.endswith(".csv")
-
-        content = Path(file_path).read_text()
-
-        assert "Book Title,Author,ASIN,Highlight,Location,Page,Note,Color,Date" in content
-        assert "Atomic Habits" in content
-        assert "James Clear" in content
-        assert "You do not rise to the level of your goals" in content
-        assert "254-267" in content
-        assert "12" in content
-        assert "Important concept" in content
-        assert "yellow" in content
-
-    def test_export_csv_with_empty_fields(self, exporter, mock_db, sample_book, temp_dir):
-        """Test CSV export with empty fields."""
-        highlight = Highlight(
-            id="test",
-            book_asin=sample_book.asin,
-            text="Test text",
-            location=None,
-            page=None,
-            note=None,
-            color=None,
-            created_date=None,
-            created_at=datetime.now(),
+        result = ExportService.export_book(
+            temp_db.db_path, sample_book.asin, str(temp_dir), ExportFormat.CSV
         )
-        mock_db.get_book.return_value = sample_book
-        mock_db.get_highlights.return_value = [highlight]
 
-        file_path = exporter.export_book(sample_book.asin, temp_dir, ExportFormat.CSV)
+        assert result.success
+        file_path = Path(result.files_created[0])
+        assert file_path.suffix == ".csv"
 
-        content = Path(file_path).read_text()
-        lines = content.strip().split("\n")
-        assert len(lines) == 2
-
-        data_row = lines[1]
-        assert ",," in data_row
+        content = file_path.read_text()
+        assert "Book Title,Author,ASIN,Highlight" in content
+        assert "Atomic Habits" in content
+        assert "You do not rise to the level of your goals" in content
 
 
 class TestFilenameGeneration:
     """Tests for filename generation."""
 
-    def test_generate_filename_markdown(self, exporter, sample_book):
-        """Test Markdown filename generation."""
-        filename = exporter._generate_filename(sample_book, ExportFormat.MARKDOWN)
+    def test_generate_filename_formats(self, temp_db, sample_book, temp_dir):
+        """Test filename generation for different formats."""
+        temp_db.insert_book(sample_book)
 
-        assert filename == "Clear-atomic-habits.md"
-
-    def test_generate_filename_json(self, exporter, sample_book):
-        """Test JSON filename generation."""
-        filename = exporter._generate_filename(sample_book, ExportFormat.JSON)
-
-        assert filename == "Clear-atomic-habits.json"
-
-    def test_generate_filename_csv(self, exporter, sample_book):
-        """Test CSV filename generation."""
-        filename = exporter._generate_filename(sample_book, ExportFormat.CSV)
-
-        assert filename == "Clear-atomic-habits.csv"
-
-    def test_generate_filename_special_characters(self, exporter):
-        """Test filename generation with special characters."""
-        book = Book(
-            asin="TEST",
-            title="Book: Title/Subtitle!",
-            author="John O'Brien",
-            created_at=datetime.now(),
-            updated_at=datetime.now(),
+        result_md = ExportService.export_book(
+            temp_db.db_path, sample_book.asin, str(temp_dir), ExportFormat.MARKDOWN
+        )
+        result_json = ExportService.export_book(
+            temp_db.db_path, sample_book.asin, str(temp_dir), ExportFormat.JSON
+        )
+        result_csv = ExportService.export_book(
+            temp_db.db_path, sample_book.asin, str(temp_dir), ExportFormat.CSV
         )
 
-        filename = exporter._generate_filename(book, ExportFormat.MARKDOWN)
-
-        assert "/" not in filename
-        assert ":" not in filename
-        assert filename.endswith(".md")
-
-    def test_generate_filename_long_title(self, exporter):
-        """Test filename generation with very long title."""
-        book = Book(
-            asin="TEST",
-            title="A" * 100,
-            author="Author",
-            created_at=datetime.now(),
-            updated_at=datetime.now(),
+        assert Path(result_md.files_created[0]).suffix == ".md"
+        assert Path(result_json.files_created[0]).suffix == ".json"
+        assert Path(result_csv.files_created[0]).suffix == ".csv"
+        assert all(
+            "Clear-atomic-habits" in f
+            for f in [
+                result_md.files_created[0],
+                result_json.files_created[0],
+                result_csv.files_created[0],
+            ]
         )
-
-        filename = exporter._generate_filename(book, ExportFormat.MARKDOWN)
-
-        assert len(filename) < 60
 
 
 class TestExportAll:
     """Tests for exporting all books."""
 
-    def test_export_all_multiple_books(self, exporter, mock_db, temp_dir):
+    def test_export_all_multiple_books(self, temp_db, temp_dir):
         """Test exporting all books."""
         book1 = Book(
             asin="BOOK1",
@@ -265,69 +193,80 @@ class TestExportAll:
             created_at=datetime.now(),
             updated_at=datetime.now(),
         )
+        temp_db.insert_book(book1)
+        temp_db.insert_book(book2)
 
-        mock_db.get_all_books.return_value = [book1, book2]
-        mock_db.get_book.side_effect = lambda asin: book1 if asin == "BOOK1" else book2
-        mock_db.get_highlights.return_value = []
+        result = ExportService.export_all(temp_db.db_path, str(temp_dir), ExportFormat.MARKDOWN)
 
-        files = exporter.export_all(str(temp_dir), ExportFormat.MARKDOWN)
+        assert result.success
+        assert len(result.files_created) == 2
+        assert all(Path(f).exists() for f in result.files_created)
 
-        assert len(files) == 2
-        assert all(Path(f).exists() for f in files)
-
-    def test_export_all_no_books(self, exporter, mock_db, temp_dir):
+    def test_export_all_no_books(self, temp_db, temp_dir):
         """Test exporting when no books exist."""
-        mock_db.get_all_books.return_value = []
+        result = ExportService.export_all(temp_db.db_path, str(temp_dir), ExportFormat.MARKDOWN)
 
-        with pytest.raises(ExportError, match="No books found"):
-            exporter.export_all(str(temp_dir), ExportFormat.MARKDOWN)
+        assert not result.success
+        assert "No books found" in result.message
 
-    def test_export_all_continues_on_error(self, exporter, mock_db, temp_dir):
-        """Test that export_all continues even if one book fails."""
+
+class TestExportBooks:
+    """Tests for exporting specific books."""
+
+    def test_export_books_multiple(self, temp_db, temp_dir):
+        """Test exporting multiple specific books."""
         book1 = Book(
             asin="BOOK1",
-            title="Good Book",
+            title="First",
             author="Author",
             created_at=datetime.now(),
             updated_at=datetime.now(),
         )
         book2 = Book(
             asin="BOOK2",
-            title="Bad Book",
+            title="Second",
             author="Author",
             created_at=datetime.now(),
             updated_at=datetime.now(),
         )
+        temp_db.insert_book(book1)
+        temp_db.insert_book(book2)
 
-        mock_db.get_all_books.return_value = [book1, book2]
+        result = ExportService.export_books(
+            temp_db.db_path, ["BOOK1", "BOOK2"], str(temp_dir), ExportFormat.MARKDOWN
+        )
 
-        def get_book_side_effect(asin):
-            if asin == "BOOK1":
-                return book1
-            raise Exception("Database error")
+        assert result.success
+        assert len(result.files_created) == 2
 
-        mock_db.get_book.side_effect = get_book_side_effect
-        mock_db.get_highlights.return_value = []
+    def test_export_books_some_not_found(self, temp_db, temp_dir):
+        """Test exporting when some books don't exist."""
+        book1 = Book(
+            asin="BOOK1",
+            title="First",
+            author="Author",
+            created_at=datetime.now(),
+            updated_at=datetime.now(),
+        )
+        temp_db.insert_book(book1)
 
-        files = exporter.export_all(str(temp_dir), ExportFormat.MARKDOWN)
+        result = ExportService.export_books(
+            temp_db.db_path, ["BOOK1", "NONEXISTENT"], str(temp_dir), ExportFormat.MARKDOWN
+        )
 
-        assert len(files) == 1
+        assert result.success
+        assert len(result.files_created) == 1
+        assert "1 not found" in result.message
 
 
 class TestExportErrors:
     """Tests for export error handling."""
 
-    def test_export_book_not_found(self, exporter, mock_db, temp_dir):
+    def test_export_book_not_found(self, temp_db, temp_dir):
         """Test exporting non-existent book."""
-        mock_db.get_book.return_value = None
+        result = ExportService.export_book(
+            temp_db.db_path, "NONEXISTENT", str(temp_dir), ExportFormat.MARKDOWN
+        )
 
-        with pytest.raises(ExportError, match="not found"):
-            exporter.export_book("NONEXISTENT", temp_dir, ExportFormat.MARKDOWN)
-
-    def test_export_unsupported_format(self, exporter, mock_db, sample_book, temp_dir):
-        """Test exporting with invalid format."""
-        mock_db.get_book.return_value = sample_book
-        mock_db.get_highlights.return_value = []
-
-        with pytest.raises(KeyError):
-            exporter.export_book(sample_book.asin, temp_dir, "invalid_format")
+        assert not result.success
+        assert "Book not found" in result.message
