@@ -5,7 +5,6 @@ Highlights{% endblock %} {% block extra_css %}
         opacity: 0.5;
         background: #f0f0f0 !important;
     }
-
     .toggle-visibility-btn {
         background: #fff;
         color: #666;
@@ -17,10 +16,123 @@ Highlights{% endblock %} {% block extra_css %}
         transition: all 0.2s;
         font-family: inherit;
     }
-
     .toggle-visibility-btn:hover {
         background: #f5f5f5;
         border-color: #999;
+    }
+    .edit-book-btn {
+        background: #007bff;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 4px;
+        font-size: 14px;
+        cursor: pointer;
+        margin-top: 10px;
+    }
+    .edit-book-btn:hover {
+        background: #0056b3;
+    }
+    .modal {
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5);
+    }
+    .modal-content {
+        background-color: #fff;
+        margin: 5% auto;
+        padding: 20px;
+        border-radius: 8px;
+        width: 90%;
+        max-width: 600px;
+        max-height: 80vh;
+        overflow-y: auto;
+    }
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid #e0e0e0;
+    }
+    .modal-header h2 {
+        margin: 0;
+        font-size: 20px;
+    }
+    .close {
+        font-size: 28px;
+        font-weight: bold;
+        color: #999;
+        cursor: pointer;
+        background: none;
+        border: none;
+        padding: 0;
+        width: 30px;
+        height: 30px;
+        line-height: 28px;
+    }
+    .close:hover {
+        color: #333;
+    }
+    .form-group {
+        margin-bottom: 15px;
+    }
+    .form-group label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: 500;
+        font-size: 14px;
+    }
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 14px;
+        font-family: inherit;
+        box-sizing: border-box;
+    }
+    .form-group textarea {
+        resize: vertical;
+        min-height: 80px;
+    }
+    .form-actions {
+        display: flex;
+        gap: 10px;
+        justify-content: flex-end;
+        margin-top: 20px;
+        padding-top: 20px;
+        border-top: 1px solid #e0e0e0;
+    }
+    .btn {
+        padding: 10px 20px;
+        border: none;
+        border-radius: 4px;
+        font-size: 14px;
+        cursor: pointer;
+        transition: background-color 0.2s;
+    }
+    .btn-primary {
+        background: #007bff;
+        color: white;
+    }
+    .btn-primary:hover {
+        background: #0056b3;
+    }
+    .btn-secondary {
+        background: #6c757d;
+        color: white;
+    }
+    .btn-secondary:hover {
+        background: #545b62;
     }
 </style>
 {% endblock %} {% block content %}
@@ -32,9 +144,9 @@ Highlights{% endblock %} {% block extra_css %}
     <div class="meta">
         <span>ASIN: {{ book.asin }}</span>
         <span>{{ highlights|length }} highlights</span>
-        {% if book.last_annotated_date %}
-        <span>Last annotated: {{ format_date(book.last_annotated_date) }}</span>
-        {% endif %}
+        {% if book.last_annotated_date %}<span
+            >Last annotated: {{ format_date(book.last_annotated_date) }}</span
+        >{% endif %}
     </div>
 
     {% if book.status or book.format or book.isbn or book.genres or book.notes
@@ -90,6 +202,172 @@ Highlights{% endblock %} {% block extra_css %}
         {% endif %}
     </div>
     {% endif %}
+
+    <button class="edit-book-btn" onclick="openEditModal()">
+        Edit Book Details
+    </button>
+</div>
+
+<div id="editBookModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Edit Book Details</h2>
+            <button class="close" onclick="closeEditModal()">&times;</button>
+        </div>
+        <form id="editBookForm">
+            <div class="form-group">
+                <label for="status">Status</label>
+                <select id="status" name="status">
+                    <option value="">Select status...</option>
+                    <option value="Not Started">Not Started</option>
+                    <option value="Started">Started</option>
+                    <option value="Done">Done</option>
+                    <option value="Abandoned">Abandoned</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="format">Format</label>
+                <select id="format" name="format">
+                    <option value="">Select format...</option>
+                    <option value="eBook">eBook</option>
+                    <option value="Paperback">Paperback</option>
+                    <option value="Hardcover">Hardcover</option>
+                    <option value="Audiobook">Audiobook</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="isbn">ISBN</label>
+                <input
+                    type="text"
+                    id="isbn"
+                    name="isbn"
+                    value="{{ book.isbn or '' }}"
+                    placeholder="ISBN"
+                />
+            </div>
+            <div class="form-group">
+                <label for="purchase_date">Purchase Date</label>
+                <input
+                    type="date"
+                    id="purchase_date"
+                    name="purchase_date"
+                    value="{% if book.purchase_date %}{{ book.purchase_date.strftime('%Y-%m-%d') if book.purchase_date.strftime else book.purchase_date[:10] }}{% endif %}"
+                />
+            </div>
+            <div class="form-group">
+                <label for="start_date">Start Date</label>
+                <input
+                    type="date"
+                    id="start_date"
+                    name="start_date"
+                    value="{% if book.start_date %}{{ book.start_date.strftime('%Y-%m-%d') if book.start_date.strftime else book.start_date[:10] }}{% endif %}"
+                />
+            </div>
+            <div class="form-group">
+                <label for="end_date">End Date</label>
+                <input
+                    type="date"
+                    id="end_date"
+                    name="end_date"
+                    value="{% if book.end_date %}{{ book.end_date.strftime('%Y-%m-%d') if book.end_date.strftime else book.end_date[:10] }}{% endif %}"
+                />
+            </div>
+            <div class="form-group">
+                <label for="reading_time">Reading Time (HH:MM)</label>
+                <input
+                    type="text"
+                    id="reading_time"
+                    name="reading_time"
+                    value="{{ book.reading_time or '' }}"
+                    placeholder="e.g., 05:30"
+                />
+            </div>
+            <div class="form-group">
+                <label for="genres">Genres (comma-separated)</label>
+                <input
+                    type="text"
+                    id="genres"
+                    name="genres"
+                    value="{{ book.genres or '' }}"
+                    placeholder="e.g., Fiction, Science Fiction"
+                />
+            </div>
+            <div class="form-group">
+                <label for="classification"
+                    >Classification (Dewey Decimal)</label
+                >
+                <input
+                    type="text"
+                    id="classification"
+                    name="classification"
+                    value="{{ book.classification or '' }}"
+                    placeholder="e.g., 813.54"
+                />
+            </div>
+            <div class="form-group">
+                <label for="shop_link">Shop Link</label>
+                <input
+                    type="url"
+                    id="shop_link"
+                    name="shop_link"
+                    value="{{ book.shop_link or '' }}"
+                    placeholder="https://..."
+                />
+            </div>
+            <div class="form-group">
+                <label for="goodreads_link">Goodreads Link</label>
+                <input
+                    type="url"
+                    id="goodreads_link"
+                    name="goodreads_link"
+                    value="{{ book.goodreads_link or '' }}"
+                    placeholder="https://goodreads.com/..."
+                />
+            </div>
+            <div class="form-group">
+                <label for="price_gbp">Price (GBP)</label>
+                <input
+                    type="text"
+                    id="price_gbp"
+                    name="price_gbp"
+                    value="{{ book.price_gbp or '' }}"
+                    placeholder="£9.99"
+                />
+            </div>
+            <div class="form-group">
+                <label for="price_inr">Price (INR)</label>
+                <input
+                    type="text"
+                    id="price_inr"
+                    name="price_inr"
+                    value="{{ book.price_inr or '' }}"
+                    placeholder="₹299"
+                />
+            </div>
+            <div class="form-group">
+                <label for="notes">Notes</label>
+                <textarea
+                    id="notes"
+                    name="notes"
+                    placeholder="Your notes about this book..."
+                >
+{{ book.notes or '' }}</textarea
+                >
+            </div>
+            <div class="form-actions">
+                <button
+                    type="button"
+                    class="btn btn-secondary"
+                    onclick="closeEditModal()"
+                >
+                    Cancel
+                </button>
+                <button type="submit" class="btn btn-primary">
+                    Save Changes
+                </button>
+            </div>
+        </form>
+    </div>
 </div>
 
 {% if highlights %} {% for highlight in highlights %}
@@ -98,21 +376,19 @@ Highlights{% endblock %} {% block extra_css %}
     id="highlight-{{ highlight.id }}"
 >
     <div class="highlight-text">{{ highlight.text }}</div>
-
     {% if highlight.note %}
     <div class="highlight-note">Note: {{ highlight.note }}</div>
     {% endif %}
-
     <div class="highlight-meta">
-        <span>
-            {% if highlight.page %} Page {{ highlight.page }} {% endif %} {% if
-            highlight.location %} · Location {{ highlight.location }} {% endif
-            %}
-        </span>
-        <span>
-            {% if highlight.created_date %} {{
-            format_date(highlight.created_date) }} {% endif %}
-        </span>
+        <span
+            >{% if highlight.page %}Page {{ highlight.page }}{% endif %}{% if
+            highlight.location %} · Location {{ highlight.location }}{% endif
+            %}</span
+        >
+        <span
+            >{% if highlight.created_date %}{{
+            format_date(highlight.created_date) }}{% endif %}</span
+        >
         <button
             class="toggle-visibility-btn"
             onclick="toggleHighlightVisibility('{{ highlight.id }}', {{ 'true' if highlight.is_hidden else 'false' }})"
@@ -135,14 +411,10 @@ Highlights{% endblock %} {% block extra_css %}
                 `/api/highlights/${highlightId}/toggle-visibility`,
                 {
                     method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
+                    headers: { "Content-Type": "application/json" },
                 },
             );
-
             const data = await response.json();
-
             if (data.success) {
                 const highlightDiv = document.getElementById(
                     `highlight-${highlightId}`,
@@ -150,7 +422,6 @@ Highlights{% endblock %} {% block extra_css %}
                 const button = highlightDiv.querySelector(
                     ".toggle-visibility-btn",
                 );
-
                 if (data.data.is_hidden) {
                     highlightDiv.classList.add("hidden-highlight");
                     button.textContent = "Show";
@@ -168,6 +439,64 @@ Highlights{% endblock %} {% block extra_css %}
             alert("Failed to toggle highlight visibility: " + error.message);
         }
     }
-</script>
 
+    function openEditModal() {
+        document.getElementById("editBookModal").style.display = "block";
+        const bookData = {
+            status: "{{ book.status or '' }}",
+            format: "{{ book.format or '' }}",
+        };
+        if (bookData.status)
+            document.getElementById("status").value = bookData.status;
+        if (bookData.format)
+            document.getElementById("format").value = bookData.format;
+    }
+
+    function closeEditModal() {
+        document.getElementById("editBookModal").style.display = "none";
+    }
+    window.onclick = function (event) {
+        const modal = document.getElementById("editBookModal");
+        if (event.target === modal) {
+            closeEditModal();
+        }
+    };
+
+    document
+        .getElementById("editBookForm")
+        .addEventListener("submit", async function (e) {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const data = {};
+            for (let [key, value] of formData.entries()) {
+                if (value && value.trim() !== "") {
+                    data[key] = value.trim();
+                } else {
+                    data[key] = null;
+                }
+            }
+            try {
+                const response = await fetch(
+                    "/api/books/{{ book.asin }}/metadata",
+                    {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(data),
+                    },
+                );
+                const result = await response.json();
+                if (result.success) {
+                    alert("Book details updated successfully!");
+                    window.location.reload();
+                } else {
+                    alert(
+                        "Failed to update book details: " +
+                            (result.message || result.error),
+                    );
+                }
+            } catch (error) {
+                alert("Failed to update book details: " + error.message);
+            }
+        });
+</script>
 {% endblock %}
