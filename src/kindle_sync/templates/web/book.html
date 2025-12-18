@@ -33,6 +33,48 @@ Highlights{% endblock %} {% block extra_css %}
     .edit-book-btn:hover {
         background: #0056b3;
     }
+    .review-section {
+        margin-top: 20px;
+        padding: 15px;
+        background: #fff;
+        border: 1px solid #e0e0e0;
+        border-radius: 5px;
+    }
+    .review-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+    }
+    .review-header h3 {
+        margin: 0;
+        font-size: 16px;
+        font-weight: 600;
+    }
+    .save-status {
+        font-size: 12px;
+        color: #28a745;
+        opacity: 0;
+        transition: opacity 0.3s;
+    }
+    .save-status.show {
+        opacity: 1;
+    }
+    .review-textarea {
+        width: 100%;
+        min-height: 150px;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 14px;
+        font-family: inherit;
+        resize: vertical;
+        box-sizing: border-box;
+    }
+    .review-textarea:focus {
+        outline: none;
+        border-color: #007bff;
+    }
     .modal {
         display: none;
         position: fixed;
@@ -202,6 +244,20 @@ Highlights{% endblock %} {% block extra_css %}
         {% endif %}
     </div>
     {% endif %}
+
+    <div class="review-section">
+        <div class="review-header">
+            <h3>My Review</h3>
+            <span class="save-status" id="saveStatus">✓ Saved</span>
+        </div>
+        <textarea
+            class="review-textarea"
+            id="reviewTextarea"
+            placeholder="Write your review of this book..."
+        >
+{{ book.review or '' }}</textarea
+        >
+    </div>
 
     <button class="edit-book-btn" onclick="openEditModal()">
         Edit Book Details
@@ -498,5 +554,33 @@ Highlights{% endblock %} {% block extra_css %}
                 alert("Failed to update book details: " + error.message);
             }
         });
+
+    let saveTimeout;
+    const reviewTextarea = document.getElementById("reviewTextarea");
+    const saveStatus = document.getElementById("saveStatus");
+
+    reviewTextarea.addEventListener("input", function () {
+        clearTimeout(saveTimeout);
+        saveTimeout = setTimeout(async () => {
+            const review = reviewTextarea.value.trim();
+            try {
+                const response = await fetch(
+                    "/api/books/{{ book.asin }}/metadata",
+                    {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ review: review || null }),
+                    },
+                );
+                const result = await response.json();
+                if (result.success) {
+                    saveStatus.classList.add("show");
+                    setTimeout(() => saveStatus.classList.remove("show"), 2000);
+                }
+            } catch (error) {
+                console.error("Failed to auto-save review:", error);
+            }
+        }, 3000);
+    });
 </script>
 {% endblock %}

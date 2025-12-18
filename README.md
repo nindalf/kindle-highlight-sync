@@ -432,11 +432,12 @@ MIT License - see LICENSE file
 - [x] Export location.
 - [x] Add more details to the book: Purchase date,Book,Author,Status,Format,Start date,End date,Reading time,Genres,Amazon link,ISBN,Classification,Goodreads link,price in GBP, price in INR
 - [x] Fetch ISBN from amazon.
-- [ ] Add ability to review a book
-- [ ] Use ISBN to fetch genres from Goodreads.
-- [ ] Add an option in the web interface to edit details to the book.
-- [ ] Add a pre-commit hook that runs `ruff` and `ty`
-- [ ] Explore packaging this project into an app that could be launched on a mac, without needing to be launched from the command line.
+- [x] Add an option in the web interface to edit details to the book.
+- [x] Add ability to review a book
 - [x] Option to hide a highlight
 - [ ] Export in an Astro friendly format.
+- [ ] Explore packaging this project into an app that could be launched on a mac, without needing to be launched from the command line.
 - [ ] Add a tray option to trigger the sync and export and open the web interface.
+- [ ] Use ISBN to fetch genres from Goodreads.
+- [ ] Figure out why Dopamine nation and Project Hail Mary aren't being parsed.
+- [ ] Add a pre-commit hook that runs `ruff` and `ty`

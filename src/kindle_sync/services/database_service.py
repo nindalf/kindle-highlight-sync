@@ -60,7 +60,8 @@ class DatabaseManager:
                 classification TEXT,
                 goodreads_link TEXT,
                 price_gbp TEXT,
-                price_inr TEXT
+                price_inr TEXT,
+                review TEXT
             )
         """)
 
@@ -152,9 +153,9 @@ class DatabaseManager:
                     purchase_date, status, format, notes,
                     start_date, end_date, reading_time, genres,
                     shop_link, isbn, classification, goodreads_link,
-                    price_gbp, price_inr
+                    price_gbp, price_inr, review
                 )
-                VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(asin) DO UPDATE SET
                     title = excluded.title,
                     author = excluded.author,
@@ -175,6 +176,7 @@ class DatabaseManager:
                     goodreads_link = excluded.goodreads_link,
                     price_gbp = excluded.price_gbp,
                     price_inr = excluded.price_inr,
+                    review = excluded.review,
                     updated_at = CURRENT_TIMESTAMP
                 """,
                 (
@@ -198,6 +200,7 @@ class DatabaseManager:
                     book.goodreads_link,
                     book.price_gbp,
                     book.price_inr,
+                    book.review,
                 ),
             )
             self.conn.commit()
@@ -214,7 +217,7 @@ class DatabaseManager:
                    purchase_date, status, format, notes,
                    start_date, end_date, reading_time, genres,
                    shop_link, isbn, classification, goodreads_link,
-                   price_gbp, price_inr
+                   price_gbp, price_inr, review
             FROM books WHERE asin = ?
             """,
             (asin,),
@@ -246,6 +249,7 @@ class DatabaseManager:
             goodreads_link=row[19],
             price_gbp=row[20],
             price_inr=row[21],
+            review=row[22],
         )
 
     def get_all_books(self, sort_by: str = "title") -> list[Book]:
@@ -258,7 +262,7 @@ class DatabaseManager:
                    purchase_date, status, format, notes,
                    start_date, end_date, reading_time, genres,
                    shop_link, isbn, classification, goodreads_link,
-                   price_gbp, price_inr
+                   price_gbp, price_inr, review
             FROM books
             ORDER BY title
             """
@@ -288,6 +292,7 @@ class DatabaseManager:
                 goodreads_link=row[19],
                 price_gbp=row[20],
                 price_inr=row[21],
+                review=row[22],
             )
             for row in cursor.fetchall()
         ]
@@ -326,6 +331,7 @@ class DatabaseManager:
             "goodreads_link",
             "price_gbp",
             "price_inr",
+            "review",
         }
 
         update_fields = {k: v for k, v in kwargs.items() if k in allowed_fields}
