@@ -73,9 +73,7 @@ class TestDatabaseManager:
     def test_init_schema_creates_tables(self, temp_db):
         """Test that schema initialization creates all tables."""
         # Query sqlite_master to check tables exist
-        cursor = temp_db.conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='table'"
-        )
+        cursor = temp_db.conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
         tables = {row[0] for row in cursor.fetchall()}
 
         assert "books" in tables
@@ -393,13 +391,10 @@ class TestSearchHighlights:
             id="h1",
             book_asin=sample_book.asin,
             text="The quick brown fox",
-            created_at=datetime.now()
+            created_at=datetime.now(),
         )
         h2 = Highlight(
-            id="h2",
-            book_asin=sample_book.asin,
-            text="The lazy dog",
-            created_at=datetime.now()
+            id="h2", book_asin=sample_book.asin, text="The lazy dog", created_at=datetime.now()
         )
         temp_db.insert_highlight(h1)
         temp_db.insert_highlight(h2)
@@ -418,7 +413,7 @@ class TestSearchHighlights:
             book_asin=sample_book.asin,
             text="Some text",
             note="Important concept",
-            created_at=datetime.now()
+            created_at=datetime.now(),
         )
         temp_db.insert_highlight(h1)
 
@@ -434,7 +429,7 @@ class TestSearchHighlights:
             id="h1",
             book_asin=sample_book.asin,
             text="The Quick Brown Fox",
-            created_at=datetime.now()
+            created_at=datetime.now(),
         )
         temp_db.insert_highlight(h1)
 
@@ -453,29 +448,23 @@ class TestSearchHighlights:
             title="Book One",
             author="Author One",
             created_at=datetime.now(),
-            updated_at=datetime.now()
+            updated_at=datetime.now(),
         )
         book2 = Book(
             asin="BOOK2",
             title="Book Two",
             author="Author Two",
             created_at=datetime.now(),
-            updated_at=datetime.now()
+            updated_at=datetime.now(),
         )
         temp_db.insert_book(book1)
         temp_db.insert_book(book2)
 
         h1 = Highlight(
-            id="h1",
-            book_asin="BOOK1",
-            text="Searchable text",
-            created_at=datetime.now()
+            id="h1", book_asin="BOOK1", text="Searchable text", created_at=datetime.now()
         )
         h2 = Highlight(
-            id="h2",
-            book_asin="BOOK2",
-            text="Searchable text",
-            created_at=datetime.now()
+            id="h2", book_asin="BOOK2", text="Searchable text", created_at=datetime.now()
         )
         temp_db.insert_highlight(h1)
         temp_db.insert_highlight(h2)
@@ -494,10 +483,7 @@ class TestSearchHighlights:
         temp_db.insert_book(sample_book)
 
         h1 = Highlight(
-            id="h1",
-            book_asin=sample_book.asin,
-            text="Some text",
-            created_at=datetime.now()
+            id="h1", book_asin=sample_book.asin, text="Some text", created_at=datetime.now()
         )
         temp_db.insert_highlight(h1)
 

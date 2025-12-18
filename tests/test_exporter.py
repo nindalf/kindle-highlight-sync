@@ -106,9 +106,7 @@ class TestMarkdownExport:
         mock_db.get_book.return_value = sample_book
         mock_db.get_highlights.return_value = sample_highlights
 
-        file_path = exporter.export_book(
-            sample_book.asin, temp_dir, ExportFormat.MARKDOWN
-        )
+        file_path = exporter.export_book(sample_book.asin, temp_dir, ExportFormat.MARKDOWN)
 
         assert Path(file_path).exists()
         content = Path(file_path).read_text()
@@ -162,9 +160,7 @@ class TestMarkdownExport:
 class TestJSONExport:
     """Tests for JSON export."""
 
-    def test_export_json_basic(
-        self, exporter, mock_db, sample_book, sample_highlights, temp_dir
-    ):
+    def test_export_json_basic(self, exporter, mock_db, sample_book, sample_highlights, temp_dir):
         """Test basic JSON export."""
         mock_db.get_book.return_value = sample_book
         mock_db.get_highlights.return_value = sample_highlights
@@ -186,9 +182,7 @@ class TestJSONExport:
         assert data["highlights"][1]["color"] == "blue"
         assert data["metadata"]["total_highlights"] == 2
 
-    def test_export_json_with_none_values(
-        self, exporter, mock_db, sample_book, temp_dir
-    ):
+    def test_export_json_with_none_values(self, exporter, mock_db, sample_book, temp_dir):
         """Test JSON export with None values."""
         highlight = Highlight(
             id="test",
@@ -216,9 +210,7 @@ class TestJSONExport:
 class TestCSVExport:
     """Tests for CSV export."""
 
-    def test_export_csv_basic(
-        self, exporter, mock_db, sample_book, sample_highlights, temp_dir
-    ):
+    def test_export_csv_basic(self, exporter, mock_db, sample_book, sample_highlights, temp_dir):
         """Test basic CSV export."""
         mock_db.get_book.return_value = sample_book
         mock_db.get_highlights.return_value = sample_highlights
@@ -242,9 +234,7 @@ class TestCSVExport:
         assert "Important concept" in content
         assert "yellow" in content
 
-    def test_export_csv_with_empty_fields(
-        self, exporter, mock_db, sample_book, temp_dir
-    ):
+    def test_export_csv_with_empty_fields(self, exporter, mock_db, sample_book, temp_dir):
         """Test CSV export with empty fields."""
         highlight = Highlight(
             id="test",

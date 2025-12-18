@@ -51,6 +51,7 @@ def create_app(db_path: str | None = None) -> Flask:
     @app.context_processor
     def utility_processor():
         """Add utility functions to templates."""
+
         def format_date(date_obj: str | datetime | None) -> str:
             """Format date to readable format."""
             if not date_obj:
@@ -103,10 +104,12 @@ def create_app(db_path: str | None = None) -> Flask:
         books_with_counts = []
         for book in books:
             highlights = db.get_highlights(book.asin)
-            books_with_counts.append({
-                "book": book,
-                "highlight_count": len(highlights),
-            })
+            books_with_counts.append(
+                {
+                    "book": book,
+                    "highlight_count": len(highlights),
+                }
+            )
 
         # Get last sync time
         last_sync = db.get_last_sync()
@@ -147,19 +150,13 @@ def create_app(db_path: str | None = None) -> Flask:
         db = get_db()
 
         # Search with optional book filter
-        results = db.search_highlights(
-            query,
-            book_asin=book_filter if book_filter else None
-        )
+        results = db.search_highlights(query, book_asin=book_filter if book_filter else None)
 
         # Group results by book for better display
         books_results = {}
         for highlight, book in results:
             if book.asin not in books_results:
-                books_results[book.asin] = {
-                    "book": book,
-                    "highlights": []
-                }
+                books_results[book.asin] = {"book": book, "highlights": []}
             books_results[book.asin]["highlights"].append(highlight)
 
         return render_template(
@@ -167,7 +164,7 @@ def create_app(db_path: str | None = None) -> Flask:
             query=query,
             results=list(books_results.values()),
             total_results=len(results),
-            book_filter=book_filter
+            book_filter=book_filter,
         )
 
     return app
