@@ -324,6 +324,46 @@ def create_app(db_path: str | None = None) -> Flask:
             }
         )
 
+    @app.route("/api/images-directory", methods=["GET"])
+    def api_get_images_directory():
+        """Get the configured images directory."""
+        from kindle_sync.config import Config
+
+        db = get_db()
+        images_dir = db.get_images_directory()
+
+        # Use default if not set
+        if not images_dir:
+            images_dir = Config.DEFAULT_IMAGES_DIR
+
+        return jsonify({"success": True, "data": {"images_directory": images_dir}})
+
+    @app.route("/api/images-directory", methods=["POST"])
+    def api_set_images_directory():
+        """Set the images directory."""
+        data = request.get_json() or {}
+        images_dir = data.get("images_directory", "").strip()
+
+        if not images_dir:
+            return jsonify(
+                {
+                    "success": False,
+                    "message": "images_directory is required",
+                    "error": "Missing images_directory parameter",
+                }
+            ), 400
+
+        db = get_db()
+        db.set_images_directory(images_dir)
+
+        return jsonify(
+            {
+                "success": True,
+                "message": "Images directory updated",
+                "data": {"images_directory": images_dir},
+            }
+        )
+
     @app.route("/api/highlights/<highlight_id>/toggle-visibility", methods=["POST"])
     def api_toggle_highlight_visibility(highlight_id: str):
         """Toggle the visibility of a highlight."""

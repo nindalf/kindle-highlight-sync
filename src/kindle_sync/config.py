@@ -64,6 +64,7 @@ class Config:
     DEFAULT_REGION: AmazonRegion = AmazonRegion.INDIA
     DEFAULT_DB_PATH: str = "~/.kindle-sync/highlights.db"
     DEFAULT_EXPORT_DIR: str = "~/.kindle-sync/exports"
+    DEFAULT_IMAGES_DIR: str = "~/.kindle-sync/images"
     DEFAULT_TEMPLATE: str = "default"
 
     # Browser settings

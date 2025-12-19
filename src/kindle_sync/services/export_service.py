@@ -112,7 +112,7 @@ class ExportService:
         asins: list[str],
         output_dir: str,
         format: ExportFormat = ExportFormat.MARKDOWN,
-        template: str = "default",
+        template: str = "simple",
     ) -> ExportResult:
         """Export multiple books with their highlights."""
         from kindle_sync.services.database_service import DatabaseManager

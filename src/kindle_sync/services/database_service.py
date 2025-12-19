@@ -592,6 +592,31 @@ class DatabaseManager:
         )
         self.conn.commit()
 
+    def get_images_directory(self) -> str | None:
+        """Get the configured images directory."""
+        self.connect()
+        assert self.conn is not None
+        cursor = self.conn.execute("SELECT value FROM sync_metadata WHERE key = 'images_directory'")
+        if row := cursor.fetchone():
+            return row[0]
+        return None
+
+    def set_images_directory(self, directory: str) -> None:
+        """Set the images directory."""
+        self.connect()
+        assert self.conn is not None
+        self.conn.execute(
+            """
+            INSERT INTO sync_metadata (key, value, updated_at)
+            VALUES (?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(key) DO UPDATE SET
+                value = excluded.value,
+                updated_at = CURRENT_TIMESTAMP
+            """,
+            ("images_directory", directory),
+        )
+        self.conn.commit()
+
     def toggle_highlight_visibility(self, highlight_id: str) -> bool:
         """Toggle the visibility of a highlight. Returns the new is_hidden state."""
         self.connect()

@@ -64,6 +64,34 @@ endblock %} {% block content %}
         <div id="export-dir-result"></div>
     </div>
 
+    <!-- Images Directory Section -->
+    <div class="settings-section">
+        <h3>🖼️ Images Directory</h3>
+        <p class="section-description">
+            Configure the default directory where book cover images will be
+            saved.
+        </p>
+        <div class="export-dir-form">
+            <div class="form-group">
+                <label for="images-directory">Images Directory:</label>
+                <input
+                    type="text"
+                    id="images-directory"
+                    class="form-control"
+                    placeholder="Loading..."
+                />
+            </div>
+            <button
+                id="save-images-dir-btn"
+                class="btn btn-primary"
+                onclick="saveImagesDirectory()"
+            >
+                Save Directory
+            </button>
+        </div>
+        <div id="images-dir-result"></div>
+    </div>
+
     <!-- Export Section -->
     <div class="settings-section">
         <h3>📤 Export Highlights</h3>
@@ -271,6 +299,7 @@ endblock %} {% block content %}
     document.addEventListener("DOMContentLoaded", () => {
         loadStatus();
         loadExportDirectory();
+        loadImagesDirectory();
     });
 
     async function loadExportDirectory() {
@@ -285,6 +314,22 @@ endblock %} {% block content %}
         } catch (error) {
             document.getElementById("export-dir-result").innerHTML = `
                 <div class="alert alert-error">Failed to load export directory: ${error.message}</div>
+            `;
+        }
+    }
+
+    async function loadImagesDirectory() {
+        try {
+            const response = await fetch("/api/images-directory");
+            const data = await response.json();
+
+            if (data.success) {
+                document.getElementById("images-directory").value =
+                    data.data.images_directory;
+            }
+        } catch (error) {
+            document.getElementById("images-dir-result").innerHTML = `
+                <div class="alert alert-error">Failed to load images directory: ${error.message}</div>
             `;
         }
     }
@@ -336,6 +381,56 @@ endblock %} {% block content %}
             `;
         } finally {
             saveDirBtn.disabled = false;
+        }
+    }
+
+    async function saveImagesDirectory() {
+        const saveImagesDirBtn = document.getElementById("save-images-dir-btn");
+        const imagesDirInput = document.getElementById("images-directory");
+        const resultDiv = document.getElementById("images-dir-result");
+
+        const imagesDir = imagesDirInput.value.trim();
+
+        if (!imagesDir) {
+            resultDiv.innerHTML = `
+                <div class="alert alert-error">Please enter a valid images directory</div>
+            `;
+            return;
+        }
+
+        saveImagesDirBtn.disabled = true;
+        resultDiv.innerHTML = '<div class="alert alert-info">Saving...</div>';
+
+        try {
+            const response = await fetch("/api/images-directory", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ images_directory: imagesDir }),
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                resultDiv.innerHTML = `
+                    <div class="alert alert-success">${data.message}</div>
+                `;
+                // Clear the message after 3 seconds
+                setTimeout(() => {
+                    resultDiv.innerHTML = "";
+                }, 3000);
+            } else {
+                resultDiv.innerHTML = `
+                    <div class="alert alert-error">${data.message || data.error}</div>
+                `;
+            }
+        } catch (error) {
+            resultDiv.innerHTML = `
+                <div class="alert alert-error">Failed to save: ${error.message}</div>
+            `;
+        } finally {
+            saveImagesDirBtn.disabled = false;
         }
     }
 
