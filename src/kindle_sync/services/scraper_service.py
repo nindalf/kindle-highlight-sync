@@ -194,6 +194,8 @@ class KindleScraper:
         image_url = None
         if "productUrl" in item:
             image_url = item["productUrl"]
+            # Remove size markers like ._SY160 or ._SY400_ before the file extension
+            image_url = re.sub(r"\._SY\d+_?(?=\.\w+$)", "", image_url)
 
         # Extract last annotated date
         last_annotated_date = None

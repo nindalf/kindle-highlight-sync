@@ -9,6 +9,7 @@ providing a consistent API and behavior across all interfaces.
 
 from kindle_sync.services.auth_service import AuthResult, AuthService
 from kindle_sync.services.export_service import ExportResult, ExportService
+from kindle_sync.services.image_service import ImageResult, ImageService
 from kindle_sync.services.sync_service import SyncResult, SyncService
 
 __all__ = [
@@ -18,4 +19,6 @@ __all__ = [
     "SyncResult",
     "ExportService",
     "ExportResult",
+    "ImageService",
+    "ImageResult",
 ]

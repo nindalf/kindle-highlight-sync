@@ -364,6 +364,41 @@ def create_app(db_path: str | None = None) -> Flask:
             }
         )
 
+    @app.route("/api/sync-images", methods=["POST"])
+    def api_sync_images():
+        """Sync book cover images."""
+        from kindle_sync.models import ImageSize
+        from kindle_sync.services import ImageService
+
+        data = request.get_json() or {}
+        size_str = data.get("size", "medium")
+
+        # Convert size string to ImageSize enum
+        try:
+            image_size = ImageSize.from_name(size_str)
+        except ValueError:
+            return jsonify(
+                {
+                    "success": False,
+                    "message": "Invalid image size",
+                    "error": f"Size must be one of: {', '.join(s.value for s in ImageSize)}",
+                }
+            ), 400
+
+        result = ImageService.sync_all_images(app.config["DB_PATH"], image_size)
+
+        return jsonify(
+            {
+                "success": result.success,
+                "message": result.message,
+                "data": {
+                    "images_downloaded": result.images_downloaded,
+                    "total_bytes": result.total_bytes,
+                },
+                "error": result.error,
+            }
+        )
+
     @app.route("/api/highlights/<highlight_id>/toggle-visibility", methods=["POST"])
     def api_toggle_highlight_visibility(highlight_id: str):
         """Toggle the visibility of a highlight."""

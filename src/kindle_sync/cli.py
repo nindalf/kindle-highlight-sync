@@ -310,6 +310,39 @@ def show(ctx: click.Context, asin: str) -> None:
             console.print(f"... and {len(highlights) - 5} more highlight(s)")
 
 
+@main.command(name="sync-images")
+@click.option(
+    "--size",
+    type=click.Choice(["small", "medium", "large", "original"], case_sensitive=False),
+    default="medium",
+    help="Image size",
+)
+@click.pass_context
+def sync_images(ctx: click.Context, size: str) -> None:
+    """Download book cover images."""
+    from kindle_sync.models import ImageSize
+    from kindle_sync.services import ImageService
+
+    db_path = ctx.obj["db_path"]
+
+    # Convert size string to ImageSize enum
+    image_size = ImageSize.from_name(size)
+
+    console.print(f"[bold]Downloading book cover images {size}...[/bold]\n")
+
+    result = ImageService.sync_all_images(db_path, image_size)
+
+    if result.success:
+        console.print(f"\n✓ {result.message}!", style="green")
+        if result.images_downloaded > 0:
+            console.print(f"  Images downloaded: {result.images_downloaded}")
+            size_mb = result.total_bytes / (1024 * 1024)
+            console.print(f"  Total size: {size_mb:.2f} MB")
+    else:
+        console.print(f"\n✗ {result.message}: {result.error}", style="red")
+        raise click.Abort()
+
+
 @main.command()
 @click.option("--host", default="127.0.0.1", help="Host to bind to")
 @click.option("--port", default=5000, type=int, help="Port to bind to")

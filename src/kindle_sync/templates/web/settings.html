@@ -92,6 +92,34 @@ endblock %} {% block content %}
         <div id="images-dir-result"></div>
     </div>
 
+    <!-- Sync Images Section -->
+    <div class="settings-section">
+        <h3>🖼️ Sync Images</h3>
+        <p class="section-description">
+            Download book cover images to your configured images directory.
+            Images are only downloaded if they don't already exist.
+        </p>
+        <div class="export-form">
+            <div class="form-group">
+                <label for="image-size">Image Size:</label>
+                <select id="image-size" class="form-control">
+                    <option value="SMALL">Small</option>
+                    <option value="MEDIUM" selected>Medium</option>
+                    <option value="LARGE">Large</option>
+                    <option value="ORIGINAL">Original</option>
+                </select>
+            </div>
+            <button
+                id="sync-images-btn"
+                class="btn btn-primary"
+                onclick="syncImages()"
+            >
+                Sync Images
+            </button>
+        </div>
+        <div id="sync-images-result"></div>
+    </div>
+
     <!-- Export Section -->
     <div class="settings-section">
         <h3>📤 Export Highlights</h3>
@@ -606,6 +634,51 @@ endblock %} {% block content %}
             `;
         } finally {
             exportBtn.disabled = false;
+        }
+    }
+
+    async function syncImages() {
+        const syncImagesBtn = document.getElementById("sync-images-btn");
+        const imageSizeSelect = document.getElementById("image-size");
+        const resultDiv = document.getElementById("sync-images-result");
+
+        const imageSize = imageSizeSelect.value;
+
+        syncImagesBtn.disabled = true;
+        resultDiv.innerHTML = `<div class="alert alert-info">Downloading images quality - (${imageSize})...</div>`;
+
+        try {
+            const response = await fetch("/api/sync-images", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ size: imageSize }),
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                const sizeMB = (data.data.total_bytes / (1024 * 1024)).toFixed(
+                    2,
+                );
+                resultDiv.innerHTML = `
+                    <div class="alert alert-success">
+                        ${data.message}
+                        ${data.data.images_downloaded > 0 ? `<br>Downloaded ${data.data.images_downloaded} image(s) (${sizeMB} MB)` : ""}
+                    </div>
+                `;
+            } else {
+                resultDiv.innerHTML = `
+                    <div class="alert alert-error">${data.message || data.error}</div>
+                `;
+            }
+        } catch (error) {
+            resultDiv.innerHTML = `
+                <div class="alert alert-error">Image sync failed: ${error.message}</div>
+            `;
+        } finally {
+            syncImagesBtn.disabled = false;
         }
     }
 

@@ -54,6 +54,7 @@ class KindleSyncMenuBar(rumps.App):
                 rumps.MenuItem("Status", callback=self.show_status),
                 None,  # Separator
                 rumps.MenuItem("Sync Now", callback=self.sync_highlights),
+                rumps.MenuItem("Sync Images", callback=self.sync_images),
                 rumps.MenuItem("Export Highlights", callback=self.export_highlights),
                 None,  # Separator
                 rumps.MenuItem("Open Web Interface", callback=self.open_web_interface),
@@ -247,6 +248,43 @@ class KindleSyncMenuBar(rumps.App):
 
         export_thread = threading.Thread(target=export_worker, daemon=True)
         export_thread.start()
+
+    def sync_images(self, _):
+        """Sync book cover images."""
+        # Show notification
+        rumps.notification(
+            title="Kindle Sync",
+            subtitle="Image Sync Started",
+            message="Downloading book cover images...",
+        )
+
+        # Perform sync in background thread
+        def sync_images_worker():
+            from kindle_sync.services import ImageService
+
+            result = ImageService.sync_all_images(self.db_path)
+
+            if result.success:
+                size_mb = result.total_bytes / (1024 * 1024)
+                message = (
+                    f"Downloaded {result.images_downloaded} images ({size_mb:.2f} MB)"
+                    if result.images_downloaded > 0
+                    else "All images already downloaded"
+                )
+                rumps.notification(
+                    title="Kindle Sync",
+                    subtitle="Image Sync Complete",
+                    message=message,
+                )
+            else:
+                rumps.notification(
+                    title="Kindle Sync",
+                    subtitle="Image Sync Failed",
+                    message=f"{result.message}: {result.error}",
+                )
+
+        sync_images_thread = threading.Thread(target=sync_images_worker, daemon=True)
+        sync_images_thread.start()
 
     def open_web_interface(self, _):
         """Open web interface in default browser."""

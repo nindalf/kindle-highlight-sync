@@ -180,6 +180,55 @@ class TestScrapeBooks:
         assert books[1].author == "Author Two"
         assert books[2].author == "Author Three"
 
+    def test_scrape_books_image_url_processing(self, scraper, mock_session):
+        """Test that image URLs have size markers removed."""
+        # Mock API response with various image URL formats
+        api_response = Mock()
+        api_response.status_code = 200
+        api_response.raise_for_status = Mock()
+        api_response.json.return_value = {
+            "itemsList": [
+                {
+                    "asin": "BOOK1",
+                    "title": "Book 1",
+                    "authors": ["Author 1"],
+                    "productUrl": "https://m.media-amazon.com/images/I/71z10uQJnqL._SY160.jpg",
+                },
+                {
+                    "asin": "BOOK2",
+                    "title": "Book 2",
+                    "authors": ["Author 2"],
+                    "productUrl": "https://m.media-amazon.com/images/I/513iWXWubiL._SY400_.jpg",
+                },
+                {
+                    "asin": "BOOK3",
+                    "title": "Book 3",
+                    "authors": ["Author 3"],
+                    "productUrl": "https://m.media-amazon.com/images/I/41abc._SY300_.png",
+                },
+                {
+                    "asin": "BOOK4",
+                    "title": "Book 4",
+                    "authors": ["Author 4"],
+                    "productUrl": "https://m.media-amazon.com/images/I/normal.jpg",
+                },
+            ],
+            "paginationToken": None,
+        }
+
+        # Mock ISBN responses for each book
+        isbn_responses = [_mock_isbn_response() for _ in range(4)]
+        mock_session.get.side_effect = [api_response] + isbn_responses
+
+        books = scraper.scrape_books()
+
+        # Verify size markers are removed
+        assert books[0].image_url == "https://m.media-amazon.com/images/I/71z10uQJnqL.jpg"
+        assert books[1].image_url == "https://m.media-amazon.com/images/I/513iWXWubiL.jpg"
+        assert books[2].image_url == "https://m.media-amazon.com/images/I/41abc.png"
+        # URL without size marker should remain unchanged
+        assert books[3].image_url == "https://m.media-amazon.com/images/I/normal.jpg"
+
 
 class TestScrapeHighlights:
     """Tests for highlight scraping."""

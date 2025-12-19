@@ -35,6 +35,19 @@ class ExportFormat(StrEnum):
     CSV = "csv"
 
 
+class ImageSize(StrEnum):
+    """Supported image sizes for book covers."""
+
+    SMALL = "._SY400_"
+    MEDIUM = "._SY800_"
+    LARGE = "._SY1200_"
+    ORIGINAL = ""
+
+    @classmethod
+    def from_name(cls, name: str) -> ImageSize:
+        return cls[name.upper()]
+
+
 @dataclass
 class Book:
     """Represents a Kindle book."""
