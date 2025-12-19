@@ -437,8 +437,10 @@ MIT License - see LICENSE file
 - [x] Option to hide a highlight
 - [x] Export in an Astro friendly format.
 - [x] Add star ratings
-- [ ] Explore packaging this project into an app that could be launched on a mac, without needing to be launched from the command line.
-- [ ] Add a tray option to trigger the sync and export and open the web interface.
+- [x] Explore packaging this project into an app that could be launched on a mac, without needing to be launched from the command line.
+- [x] Add a tray option to trigger the sync and export and open the web interface.
+- [ ] Download the images 
 - [ ] Use ISBN to fetch genres from Goodreads.
 - [ ] Figure out why Dopamine nation and Project Hail Mary aren't being parsed.
 - [ ] Add a pre-commit hook that runs `ruff` and `ty`
+- [ ] Explore htmx in the frontend.
