@@ -33,6 +33,55 @@ Highlights{% endblock %} {% block extra_css %}
     .edit-book-btn:hover {
         background: #0056b3;
     }
+    .star-rating-section {
+        margin-top: 20px;
+        padding: 15px;
+        background: #fff;
+        border: 1px solid #e0e0e0;
+        border-radius: 5px;
+    }
+    .star-rating-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+    }
+    .star-rating-header h3 {
+        margin: 0;
+        font-size: 16px;
+        font-weight: 600;
+    }
+    .star-container {
+        display: flex;
+        gap: 5px;
+        align-items: center;
+    }
+    .star {
+        font-size: 32px;
+        color: #ddd;
+        cursor: pointer;
+        transition: color 0.2s;
+        user-select: none;
+    }
+    .star:hover,
+    .star.hover {
+        color: #ffc107;
+    }
+    .star.filled {
+        color: #ffc107;
+    }
+    .star.half-filled {
+        background: linear-gradient(90deg, #ffc107 50%, #ddd 50%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+    .rating-value {
+        margin-left: 10px;
+        font-size: 14px;
+        color: #666;
+        min-width: 50px;
+    }
     .review-section {
         margin-top: 20px;
         padding: 15px;
@@ -244,6 +293,24 @@ Highlights{% endblock %} {% block extra_css %}
         {% endif %}
     </div>
     {% endif %}
+
+    <div class="star-rating-section">
+        <div class="star-rating-header">
+            <h3>My Rating</h3>
+            <span class="save-status" id="ratingSaveStatus">✓ Saved</span>
+        </div>
+        <div class="star-container">
+            <span class="star" data-rating="1">★</span>
+            <span class="star" data-rating="2">★</span>
+            <span class="star" data-rating="3">★</span>
+            <span class="star" data-rating="4">★</span>
+            <span class="star" data-rating="5">★</span>
+            <span class="rating-value" id="ratingValue"
+                >{{ book.star_rating if book.star_rating else 'Not rated'
+                }}</span
+            >
+        </div>
+    </div>
 
     <div class="review-section">
         <div class="review-header">
@@ -582,5 +649,72 @@ Highlights{% endblock %} {% block extra_css %}
             }
         }, 3000);
     });
+
+    // Star rating functionality
+    const stars = document.querySelectorAll(".star");
+    const ratingValue = document.getElementById("ratingValue");
+    const ratingSaveStatus = document.getElementById("ratingSaveStatus");
+    let currentRating = {{ book.star_rating if book.star_rating else 0 }};
+
+    function updateStars(rating) {
+        stars.forEach((star, index) => {
+            star.classList.remove("filled", "half-filled", "hover");
+            const starValue = index + 1;
+            if (rating >= starValue) {
+                star.classList.add("filled");
+            } else if (rating > index && rating < starValue) {
+                star.classList.add("half-filled");
+            }
+        });
+    }
+
+    // Initialize stars based on current rating
+    updateStars(currentRating);
+
+    stars.forEach((star) => {
+        star.addEventListener("click", async function () {
+            const rating = parseFloat(this.getAttribute("data-rating"));
+            currentRating = rating;
+            updateStars(rating);
+            ratingValue.textContent = rating.toFixed(1);
+
+            try {
+                const response = await fetch(
+                    "/api/books/{{ book.asin }}/metadata",
+                    {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ star_rating: rating }),
+                    },
+                );
+                const result = await response.json();
+                if (result.success) {
+                    ratingSaveStatus.classList.add("show");
+                    setTimeout(
+                        () => ratingSaveStatus.classList.remove("show"),
+                        2000,
+                    );
+                }
+            } catch (error) {
+                console.error("Failed to save rating:", error);
+            }
+        });
+
+        star.addEventListener("mouseenter", function () {
+            const rating = parseFloat(this.getAttribute("data-rating"));
+            stars.forEach((s, index) => {
+                s.classList.remove("hover");
+                if (index < rating) {
+                    s.classList.add("hover");
+                }
+            });
+        });
+    });
+
+    document
+        .querySelector(".star-container")
+        .addEventListener("mouseleave", function () {
+            stars.forEach((star) => star.classList.remove("hover"));
+        });
 </script>
 {% endblock %}

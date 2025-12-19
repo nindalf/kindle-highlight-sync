@@ -436,6 +436,7 @@ MIT License - see LICENSE file
 - [x] Add ability to review a book
 - [x] Option to hide a highlight
 - [x] Export in an Astro friendly format.
+- [x] Add star ratings
 - [ ] Explore packaging this project into an app that could be launched on a mac, without needing to be launched from the command line.
 - [ ] Add a tray option to trigger the sync and export and open the web interface.
 - [ ] Use ISBN to fetch genres from Goodreads.

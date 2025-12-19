@@ -41,6 +41,9 @@ price_gbp: "{{ book.price_gbp }}"
 {% if book.price_inr %}
 price_inr: "{{ book.price_inr }}"
 {% endif %}
+{% if book.star_rating %}
+star_rating: {{ book.star_rating }}
+{% endif %}
 {% if book.image_url %}
 image_url: "{{ book.image_url }}"
 {% endif %}

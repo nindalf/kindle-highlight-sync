@@ -63,6 +63,7 @@ class Book:
     price_gbp: str | None = None  # Format: "£X.XX"
     price_inr: str | None = None  # Format: "₹X.XX"
     review: str | None = None  # User's review of the book
+    star_rating: float | None = None  # Rating out of 5.0
 
 
 @dataclass
