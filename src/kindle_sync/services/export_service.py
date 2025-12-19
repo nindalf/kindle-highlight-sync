@@ -36,7 +36,7 @@ class ExportService:
         db_path: str,
         output_dir: str,
         format: ExportFormat = ExportFormat.MARKDOWN,
-        template: str = "default",
+        template: str = "simple",
     ) -> ExportResult:
         """Export all books and highlights."""
         from kindle_sync.services.database_service import DatabaseManager
@@ -80,7 +80,7 @@ class ExportService:
         asin: str,
         output_path: str | Path,
         format: ExportFormat = ExportFormat.MARKDOWN,
-        template: str = "default",
+        template: str = "simple",
     ) -> ExportResult:
         """Export a single book with its highlights."""
         from kindle_sync.services.database_service import DatabaseManager
@@ -203,7 +203,7 @@ class ExportService:
     @staticmethod
     def _export_markdown(book_highlights: BookHighlights, template_name: str) -> str:
         """Export to Markdown using Jinja2 template."""
-        template_path = Path(__file__).parent.parent / "templates"
+        template_path = Path(__file__).parent.parent / "templates" / "export"
         env = Environment(
             loader=FileSystemLoader(str(template_path)),
             autoescape=False,

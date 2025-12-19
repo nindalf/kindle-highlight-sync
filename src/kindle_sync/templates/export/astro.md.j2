@@ -1,0 +1,81 @@
+---
+title: "{{ book.title }}"
+author: "{{ book.author }}"
+asin: "{{ book.asin }}"
+{% if book.status %}
+status: "{{ book.status }}"
+{% endif %}
+{% if book.format %}
+format: "{{ book.format }}"
+{% endif %}
+{% if book.purchase_date %}
+purchase_date: {{ book.purchase_date.strftime('%Y-%m-%d') }}
+{% endif %}
+{% if book.start_date %}
+start_date: {{ book.start_date.strftime('%Y-%m-%d') }}
+{% endif %}
+{% if book.end_date %}
+end_date: {{ book.end_date.strftime('%Y-%m-%d') }}
+{% endif %}
+{% if book.reading_time %}
+reading_time: "{{ book.reading_time }}"
+{% endif %}
+{% if book.genres %}
+genres: "{{ book.genres }}"
+{% endif %}
+{% if book.isbn %}
+isbn: "{{ book.isbn }}"
+{% endif %}
+{% if book.classification %}
+classification: "{{ book.classification }}"
+{% endif %}
+{% if book.goodreads_link %}
+goodreads_link: "{{ book.goodreads_link }}"
+{% endif %}
+{% if book.shop_link %}
+shop_link: "{{ book.shop_link }}"
+{% endif %}
+{% if book.price_gbp %}
+price_gbp: "{{ book.price_gbp }}"
+{% endif %}
+{% if book.price_inr %}
+price_inr: "{{ book.price_inr }}"
+{% endif %}
+{% if book.image_url %}
+image_url: "{{ book.image_url }}"
+{% endif %}
+{% if book.url %}
+url: "{{ book.url }}"
+{% endif %}
+{% if book.last_annotated_date %}
+last_annotated_date: {{ book.last_annotated_date.strftime('%Y-%m-%d') }}
+{% endif %}
+{% if book.created_at %}
+created_at: {{ book.created_at.strftime('%Y-%m-%d') }}
+{% endif %}
+{% if book.updated_at %}
+updated_at: {{ book.updated_at.strftime('%Y-%m-%d') }}
+{% endif %}
+highlight_count: {{ total_highlights }}
+---
+{% if book.review %}
+
+## Review
+
+{{ book.review }}
+{% endif %}
+
+## Highlights
+{% for highlight in highlights %}
+
+> {% if highlight.location %}Location {{ highlight.location }}{% endif %}{% if highlight.page %} | Page {{ highlight.page }}{% endif %}{% if highlight.created_date %} | {{ highlight.created_date.strftime('%Y-%m-%d') }}{% endif %}
+>
+> {{ highlight.text }}
+
+{% if highlight.note %}
+**Note:** {{ highlight.note }}
+
+{% endif %}
+{% endfor %}
+
+---

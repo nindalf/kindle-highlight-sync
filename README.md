@@ -435,7 +435,7 @@ MIT License - see LICENSE file
 - [x] Add an option in the web interface to edit details to the book.
 - [x] Add ability to review a book
 - [x] Option to hide a highlight
-- [ ] Export in an Astro friendly format.
+- [x] Export in an Astro friendly format.
 - [ ] Explore packaging this project into an app that could be launched on a mac, without needing to be launched from the command line.
 - [ ] Add a tray option to trigger the sync and export and open the web interface.
 - [ ] Use ISBN to fetch genres from Goodreads.
