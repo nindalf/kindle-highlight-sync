@@ -66,19 +66,6 @@ def slugify(text: str, max_length: int = 50) -> str:
 
 
 def sanitize_filename(filename: str) -> str:
-    """
-    Sanitize filename by removing invalid characters.
-
-    Args:
-        filename: Input filename
-
-    Returns:
-        Sanitized filename
-
-    Example:
-        >>> sanitize_filename("Book: Title/Subtitle")
-        "Book Title Subtitle"
-    """
     # Remove invalid filename characters
     invalid_chars = r'[<>:"/\\|?*\x00-\x1f]'
     filename = re.sub(invalid_chars, " ", filename)

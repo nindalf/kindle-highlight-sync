@@ -322,10 +322,7 @@ class ExportService:
 
     @staticmethod
     def _generate_filename(book: Book, format: ExportFormat) -> str:
-        """Generate filename: {author_last_name}-{title_slug}.{ext}"""
-        author_name = extract_author_last_name(book.author)
-        title_slug = slugify(book.title, max_length=40)
-        base_name = sanitize_filename(f"{author_name}-{title_slug}")
+        base_name = sanitize_filename(book.title)
         ext = {ExportFormat.MARKDOWN: "md", ExportFormat.JSON: "json", ExportFormat.CSV: "csv"}[
             format
         ]
