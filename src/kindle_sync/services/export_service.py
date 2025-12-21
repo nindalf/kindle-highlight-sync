@@ -9,7 +9,7 @@ from pathlib import Path
 from jinja2 import Environment, FileSystemLoader
 
 from kindle_sync.models import Book, BookHighlights, ExportFormat
-from kindle_sync.utils import extract_author_last_name, sanitize_filename, slugify
+from kindle_sync.utils import sanitize_filename
 
 
 class ExportError(Exception):

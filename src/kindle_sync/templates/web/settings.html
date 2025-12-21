@@ -136,6 +136,13 @@ endblock %} {% block content %}
                     <option value="CSV">CSV (.csv)</option>
                 </select>
             </div>
+            <div class="form-group">
+                <label for="export-template">Template:</label>
+                <select id="export-template" class="form-control">
+                    <option value="simple">Simple</option>
+                    <option value="astro">Astro</option>
+                </select>
+            </div>
             <button
                 id="export-btn"
                 class="btn btn-primary"
@@ -574,9 +581,11 @@ endblock %} {% block content %}
     async function exportHighlights() {
         const exportBtn = document.getElementById("export-btn");
         const formatSelect = document.getElementById("export-format");
+        const templateSelect = document.getElementById("export-template");
         const resultDiv = document.getElementById("export-result");
 
         const format = formatSelect.value;
+        const template = templateSelect.value;
 
         // Get the configured export directory
         let exportDir;
@@ -611,6 +620,7 @@ endblock %} {% block content %}
                 body: JSON.stringify({
                     output_dir: exportDir,
                     format: format,
+                    template: template,
                 }),
             });
 
