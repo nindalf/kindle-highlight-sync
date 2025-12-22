@@ -5,7 +5,6 @@ import time
 import pytest
 
 from kindle_sync.utils import (
-    extract_author_last_name,
     fletcher16,
     retry,
     sanitize_filename,
@@ -113,47 +112,6 @@ class TestSanitizeFilename:
     def test_backslash_removed(self):
         """Test backslash removed."""
         assert sanitize_filename("Path\\To\\File") == "Path To File"
-
-
-class TestExtractAuthorLastName:
-    """Tests for extract_author_last_name function."""
-
-    def test_single_author(self):
-        """Test extraction from single author."""
-        assert extract_author_last_name("James Clear") == "Clear"
-        assert extract_author_last_name("Robert C. Martin") == "Martin"
-
-    def test_single_word_name(self):
-        """Test single word name."""
-        assert extract_author_last_name("Madonna") == "Madonna"
-
-    def test_multiple_authors_ampersand(self):
-        """Test multiple authors separated by ampersand."""
-        result = extract_author_last_name("Andrew Hunt & David Thomas")
-        assert result == "Hunt-Thomas"
-
-    def test_multiple_authors_and(self):
-        """Test multiple authors separated by 'and'."""
-        result = extract_author_last_name("John Doe and Jane Smith")
-        assert result == "Doe-Smith"
-
-    def test_multiple_authors_comma(self):
-        """Test multiple authors separated by comma."""
-        result = extract_author_last_name("Alice Brown, Bob Green")
-        assert result == "Brown-Green"
-
-    def test_empty_string(self):
-        """Test empty string."""
-        assert extract_author_last_name("") == "Unknown"
-
-    def test_whitespace_only(self):
-        """Test whitespace only."""
-        assert extract_author_last_name("   ") == "Unknown"
-
-    def test_three_authors(self):
-        """Test three authors."""
-        result = extract_author_last_name("Alice Brown, Bob Green & Charlie White")
-        assert result == "Brown-Green-White"
 
 
 class TestRetry:

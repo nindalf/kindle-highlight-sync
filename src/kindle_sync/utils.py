@@ -79,44 +79,6 @@ def sanitize_filename(filename: str) -> str:
     return filename
 
 
-def extract_author_last_name(author: str) -> str:
-    """
-    Extract last name from author string.
-
-    Handles multiple authors and various formats.
-
-    Args:
-        author: Author string (e.g., "James Clear" or "Hunt & Thomas")
-
-    Returns:
-        Last name (e.g., "Clear" or "Hunt-Thomas")
-
-    Example:
-        >>> extract_author_last_name("James Clear")
-        "Clear"
-        >>> extract_author_last_name("Andrew Hunt & David Thomas")
-        "Hunt-Thomas"
-    """
-    # Handle multiple authors separated by &, and, or comma
-    if " & " in author or " and " in author or "," in author:
-        # Split and get last names of all authors
-        authors = re.split(r"[&,]|\sand\s", author)
-        last_names = []
-        for a in authors:
-            a = a.strip()
-            if a:
-                # Get last word as last name
-                parts = a.split()
-                if parts:
-                    last_names.append(parts[-1])
-
-        return "-".join(last_names) if last_names else "Unknown"
-
-    # Single author - get last word
-    parts = author.strip().split()
-    return parts[-1] if parts else "Unknown"
-
-
 def retry[T](
     max_attempts: int = 3,
     delay: float = 2.0,

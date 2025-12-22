@@ -9,7 +9,7 @@ from pathlib import Path
 from jinja2 import Environment, FileSystemLoader
 
 from kindle_sync.models import Book, BookHighlights, ExportFormat
-from kindle_sync.utils import sanitize_filename
+from kindle_sync.utils import sanitize_filename, slugify
 
 
 class ExportError(Exception):
@@ -322,7 +322,7 @@ class ExportService:
 
     @staticmethod
     def _generate_filename(book: Book, format: ExportFormat) -> str:
-        base_name = sanitize_filename(book.title)
+        base_name = slugify(sanitize_filename(book.title))
         ext = {ExportFormat.MARKDOWN: "md", ExportFormat.JSON: "json", ExportFormat.CSV: "csv"}[
             format
         ]

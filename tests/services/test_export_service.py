@@ -165,7 +165,7 @@ class TestFilenameGeneration:
         assert Path(result_json.files_created[0]).suffix == ".json"
         assert Path(result_csv.files_created[0]).suffix == ".csv"
         assert all(
-            "Clear-atomic-habits" in f
+            "atomic-habits" in f
             for f in [
                 result_md.files_created[0],
                 result_json.files_created[0],
