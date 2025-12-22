@@ -26,12 +26,14 @@ uv run pytest --cov=kindle_sync --cov-report=term-missing
 ```
 
 ### Building macOS App
+
 ```bash
 # Build .app bundle with py2app
 uv run --extra app python setup.py py2app
 ```
 
 ### Running the Application
+
 ```bash
 # CLI commands
 uv run kindle-sync login
@@ -147,10 +149,11 @@ def fletcher16(text: str) -> str:
 This allows detecting when highlights change between syncs.
 
 ### Export Templates
+
 Markdown export uses Jinja2 templates in `templates/export/`:
-- `default.md.j2` - Comprehensive with metadata
 - `simple.md.j2` - Minimal
-- `detailed.md.j2` - Full details
+- `astro.md.j2` - Metadata in frontmatter, highlights and review in the main body. 
+
 - `astro.md.j2` - Astro-compatible frontmatter
 
 Custom templates can be added and referenced by name.

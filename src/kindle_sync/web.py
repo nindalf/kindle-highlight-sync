@@ -242,7 +242,7 @@ def create_app(db_path: str | None = None) -> Flask:
         data = request.get_json() or {}
         output_dir = data.get("output_dir")
         format_str = data.get("format", "markdown").upper()
-        template = data.get("template", "default")
+        template = data.get("template", "simple")
         book_asins = data.get("books")
 
         if not output_dir:
