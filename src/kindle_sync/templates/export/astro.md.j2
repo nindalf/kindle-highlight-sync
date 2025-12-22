@@ -71,7 +71,8 @@ highlight_count: {{ total_highlights }}
 ## Highlights
 {% for highlight in highlights %}
 
-> {% if highlight.location %}Location {{ highlight.location }}{% endif %}{% if highlight.page %} | Page {{ highlight.page }}{% endif %}{% if highlight.created_date %} | {{ highlight.created_date.strftime('%Y-%m-%d') }}{% endif %}
+> {% if highlight.page %}Page {{ highlight.page }}
+{% endif -%}
 >
 > {{ highlight.text }}
 
