@@ -227,7 +227,6 @@ dependencies = [
     { name = "python-dateutil" },
     { name = "requests" },
     { name = "rich" },
-    { name = "rumps" },
     { name = "selenium" },
     { name = "webdriver-manager" },
 ]
@@ -235,11 +234,15 @@ dependencies = [
 [package.optional-dependencies]
 app = [
     { name = "py2app" },
+    { name = "rumps" },
 ]
 dev = [
     { name = "pytest" },
     { name = "pytest-cov" },
     { name = "ruff" },
+]
+macos = [
+    { name = "rumps" },
 ]
 
 [package.metadata]
@@ -256,11 +259,12 @@ requires-dist = [
     { name = "requests", specifier = ">=2.31.0" },
     { name = "rich", specifier = ">=13.7.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
-    { name = "rumps", specifier = ">=0.4.0" },
+    { name = "rumps", marker = "extra == 'app'", specifier = ">=0.4.0" },
+    { name = "rumps", marker = "extra == 'macos'", specifier = ">=0.4.0" },
     { name = "selenium", specifier = ">=4.15.0" },
     { name = "webdriver-manager", specifier = ">=4.0.0" },
 ]
-provides-extras = ["dev", "app"]
+provides-extras = ["dev", "macos", "app"]
 
 [[package]]
 name = "lxml"

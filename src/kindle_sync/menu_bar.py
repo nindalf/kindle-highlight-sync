@@ -1,9 +1,13 @@
 """macOS menu bar application for Kindle Highlights Sync."""
 
+import sys
 import threading
 import webbrowser
 
-import rumps
+try:
+    import rumps
+except ImportError:
+    rumps = None  # type: ignore[assignment]
 
 from kindle_sync.config import Config
 from kindle_sync.models import AmazonRegion
@@ -11,13 +15,14 @@ from kindle_sync.services import AuthService, ExportService, SyncService
 from kindle_sync.services.database_service import DatabaseManager
 from kindle_sync.web import create_app
 
+if rumps is not None:
 
-class KindleSyncMenuBar(rumps.App):
-    """macOS menu bar application for Kindle Highlights Sync."""
+    class KindleSyncMenuBar(rumps.App):  # type: ignore[misc]
+        """macOS menu bar application for Kindle Highlights Sync."""
 
     def __init__(self):
         """Initialize the menu bar app."""
-        super().__init__(
+        super().__init__(  # type: ignore[misc]
             "Kindle Sync",
             quit_button=None,
         )
@@ -309,7 +314,12 @@ class KindleSyncMenuBar(rumps.App):
 
 def main():
     """Run the menu bar application."""
-    app = KindleSyncMenuBar()
+    if rumps is None:
+        print("Error: rumps is not available. Menu bar app only works on macOS.")
+        print("Install with: uv sync --extra macos")
+        sys.exit(1)
+
+    app = KindleSyncMenuBar()  # type: ignore[misc]
     app.run()
 
 
