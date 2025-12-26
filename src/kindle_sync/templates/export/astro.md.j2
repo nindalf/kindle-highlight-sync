@@ -21,7 +21,7 @@ end_date: {{ book.end_date.strftime('%Y-%m-%d') }}
 reading_time: "{{ book.reading_time }}"
 {% endif %}
 {% if book.genres %}
-genres: "{{ book.genres }}"
+genres: [{% for genre in book.genres %}"{{ genre }}"{% if not loop.last %}, {% endif %}{% endfor %}]
 {% endif %}
 {% if book.isbn %}
 isbn: "{{ book.isbn }}"

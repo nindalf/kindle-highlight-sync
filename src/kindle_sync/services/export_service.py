@@ -217,8 +217,40 @@ class ExportService:
             raise ExportError(f"Failed to find template: {e}") from e
 
         try:
+            # Prepare book data with genres as array
+            book = book_highlights.book
+            # Extract just the filename from image_url
+            image_filename = None
+            if book.image_url:
+                image_filename = "/" + book.image_url.split("/")[-1]
+
+            book_data = {
+                "asin": book.asin,
+                "title": book.title,
+                "author": book.author,
+                "url": book.url,
+                "image_url": image_filename,
+                "last_annotated_date": book.last_annotated_date,
+                "purchase_date": book.purchase_date,
+                "status": book.status,
+                "format": book.format,
+                "notes": book.notes,
+                "start_date": book.start_date,
+                "end_date": book.end_date,
+                "reading_time": book.reading_time,
+                "genres": [g.strip() for g in book.genres.split(",")] if book.genres else [],
+                "shop_link": book.shop_link,
+                "isbn": book.isbn,
+                "classification": book.classification,
+                "goodreads_link": book.goodreads_link,
+                "price_gbp": book.price_gbp,
+                "price_inr": book.price_inr,
+                "review": book.review,
+                "star_rating": book.star_rating,
+            }
+
             return template.render(
-                book=book_highlights.book,
+                book=book_data,
                 highlights=book_highlights.highlights,
                 total_highlights=len(book_highlights.highlights),
                 export_date=datetime.now().strftime("%Y-%m-%d"),
@@ -245,6 +277,11 @@ class ExportService:
                 }
             )
 
+        # Extract just the filename from image_url
+        image_filename = None
+        if book.image_url:
+            image_filename = "/" + book.image_url.split("/")[-1]
+
         return json.dumps(
             {
                 "book": {
@@ -252,7 +289,7 @@ class ExportService:
                     "title": book.title,
                     "author": book.author,
                     "url": book.url,
-                    "image_url": book.image_url,
+                    "image_url": image_filename,
                     "last_annotated_date": book.last_annotated_date.isoformat()
                     if book.last_annotated_date
                     else None,
@@ -263,7 +300,7 @@ class ExportService:
                     "start_date": book.start_date.isoformat() if book.start_date else None,
                     "end_date": book.end_date.isoformat() if book.end_date else None,
                     "reading_time": book.reading_time,
-                    "genres": book.genres,
+                    "genres": [g.strip() for g in book.genres.split(",")] if book.genres else [],
                     "shop_link": book.shop_link,
                     "isbn": book.isbn,
                     "classification": book.classification,
