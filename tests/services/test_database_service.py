@@ -85,15 +85,18 @@ class TestBookOperations:
         assert retrieved.title == sample_book.title
         assert retrieved.author == sample_book.author
 
-    def test_insert_book_upsert(self, temp_db, sample_book):
-        """Test that inserting same book updates it."""
+    def test_insert_book_no_update_on_conflict(self, temp_db, sample_book):
+        """Test that inserting same book does not update it."""
+        original_title = sample_book.title
         temp_db.insert_book(sample_book)
 
+        # Try to insert again with different title
         sample_book.title = "Updated Title"
         temp_db.insert_book(sample_book)
 
+        # Should still have the original title
         retrieved = temp_db.get_book(sample_book.asin)
-        assert retrieved.title == "Updated Title"
+        assert retrieved.title == original_title
 
     def test_get_nonexistent_book(self, temp_db):
         """Test getting non-existent book returns None."""

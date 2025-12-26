@@ -142,7 +142,7 @@ class DatabaseManager:
         self.conn.commit()
 
     def insert_book(self, book: Book) -> None:
-        """Insert or update a book (UPSERT)."""
+        """Insert a book only if it doesn't exist (no update on conflict)."""
         self.connect()
         assert self.conn is not None
         try:
@@ -157,29 +157,7 @@ class DatabaseManager:
                     price_gbp, price_inr, review, star_rating
                 )
                 VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ON CONFLICT(asin) DO UPDATE SET
-                    title = excluded.title,
-                    author = excluded.author,
-                    url = excluded.url,
-                    image_url = excluded.image_url,
-                    last_annotated_date = excluded.last_annotated_date,
-                    purchase_date = excluded.purchase_date,
-                    status = excluded.status,
-                    format = excluded.format,
-                    notes = excluded.notes,
-                    start_date = excluded.start_date,
-                    end_date = excluded.end_date,
-                    reading_time = excluded.reading_time,
-                    genres = excluded.genres,
-                    shop_link = excluded.shop_link,
-                    isbn = excluded.isbn,
-                    classification = excluded.classification,
-                    goodreads_link = excluded.goodreads_link,
-                    price_gbp = excluded.price_gbp,
-                    price_inr = excluded.price_inr,
-                    review = excluded.review,
-                    star_rating = excluded.star_rating,
-                    updated_at = CURRENT_TIMESTAMP
+                ON CONFLICT(asin) DO NOTHING
                 """,
                 (
                     book.asin,
@@ -322,6 +300,7 @@ class DatabaseManager:
 
         # Build update query dynamically based on provided fields
         allowed_fields = {
+            "title",
             "purchase_date",
             "status",
             "format",
