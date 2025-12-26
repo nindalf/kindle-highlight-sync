@@ -339,6 +339,16 @@ Highlights{% endblock %} {% block extra_css %}
         </div>
         <form id="editBookForm">
             <div class="form-group">
+                <label for="title">Title</label>
+                <input
+                    type="text"
+                    id="title"
+                    name="title"
+                    value="{{ book.title or '' }}"
+                    placeholder="Book title"
+                />
+            </div>
+            <div class="form-group">
                 <label for="status">Status</label>
                 <select id="status" name="status">
                     <option value="">Select status...</option>
