@@ -211,9 +211,8 @@ uvx ty check                  # Type checking
 
 ## Limitations
 
-- Manual re-login required every ~7 days (session expiry)
-- Depends on Amazon's HTML structure (may break if they change it)
 - Only supports Amazon Kindle (no Kobo, Apple Books, etc.)
+- Depends on Amazon's HTML structure (may break if they change it)
 - Search uses SQL LIKE (not full-text index)
 
 ## License
@@ -226,8 +225,8 @@ Inspired by [obsidian-kindle-plugin](https://github.com/hadynz/obsidian-kindle-p
 
 ## Future Features
 
-- [ ] Download the images 
 - [ ] Use ISBN to fetch genres from Goodreads.
 - [ ] Figure out why Dopamine nation and Project Hail Mary aren't being parsed.
+- [ ] Figure out why highlights are being misclassified. Like the ones at the end of Circe.
 - [ ] Add a pre-commit hook that runs `ruff` and `ty`
 - [ ] Explore htmx in the frontend.
