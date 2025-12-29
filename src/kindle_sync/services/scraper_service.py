@@ -212,7 +212,6 @@ class KindleScraper:
 
         # Extract ISBN from product page
         isbn = self._scrape_isbn(asin)
-        print(title, isbn)
 
         return Book(
             asin=asin,
@@ -353,6 +352,59 @@ class KindleScraper:
                 return isbn_text
 
         return None
+
+    @retry(max_attempts=3)
+    def scrape_goodreads_metadata(self, isbn: str) -> tuple[str | None, int | None]:
+        """
+        Fetch genres and page count from Goodreads.
+
+        Args:
+            isbn: The ISBN of the book
+
+        Returns:
+            Tuple of (genres_csv, page_count)
+        """
+        try:
+            clean_isbn = isbn.replace("-", "").replace(" ", "")
+            url = f"https://www.goodreads.com/search?q={clean_isbn}"
+
+            response = self.session.get(url, timeout=Config.REQUEST_TIMEOUT, allow_redirects=True)
+            response.raise_for_status()
+
+            soup = BeautifulSoup(response.text, "html.parser")
+
+            # Extract genres similar to:
+            # $("span.BookPageMetadataSection__genreButton")
+            #   .map((_, el) => $(el).find("span").first().text().trim())
+            genres = []
+            seen = set()
+            genre_buttons = soup.find_all("span", class_="BookPageMetadataSection__genreButton")
+            for button in genre_buttons:
+                span = button.find("span")
+                if span:
+                    genre = span.get_text(strip=True)
+                    if genre and genre != "Audiobook" and genre not in seen:
+                        seen.add(genre)
+                        genres.append(genre)
+
+            genres_csv = ",".join(genres) if genres else None
+
+            # Extract page count similar to:
+            # const pagesText = $('[data-testid="pagesFormat"]').text().trim();
+            # const pageCount = parseInt(pagesText.match(/(\d+)\s*pages/)?.[1]);
+            page_count = None
+            pages_element = soup.find(attrs={"data-testid": "pagesFormat"})
+            if pages_element:
+                pages_text = pages_element.get_text(strip=True)
+                match = re.search(r"(\d+)\s*pages", pages_text)
+                if match:
+                    page_count = int(match.group(1))
+
+            return genres_csv, page_count
+
+        except Exception as e:
+            print(f"Warning: Failed to fetch Goodreads data for ISBN {isbn}: {e}")
+            return None, None
 
     def _parse_date(self, date_text: str) -> datetime | None:
         """Parse date string based on region."""

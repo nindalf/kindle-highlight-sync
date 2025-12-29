@@ -57,6 +57,7 @@ class DatabaseManager:
                 genres TEXT,
                 shop_link TEXT,
                 isbn TEXT,
+                page_count INTEGER,
                 classification TEXT,
                 goodreads_link TEXT,
                 price_gbp REAL,
@@ -153,10 +154,10 @@ class DatabaseManager:
                     last_annotated_date, updated_at,
                     purchase_date, status, format, notes,
                     start_date, end_date, reading_time, genres,
-                    shop_link, isbn, classification, goodreads_link,
+                    shop_link, isbn, page_count, classification, goodreads_link,
                     price_gbp, price_inr, review, star_rating
                 )
-                VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(asin) DO NOTHING
                 """,
                 (
@@ -176,6 +177,7 @@ class DatabaseManager:
                     book.genres,
                     book.shop_link,
                     book.isbn,
+                    book.page_count,
                     book.classification,
                     book.goodreads_link,
                     book.price_gbp,
@@ -197,7 +199,7 @@ class DatabaseManager:
                    created_at, updated_at,
                    purchase_date, status, format, notes,
                    start_date, end_date, reading_time, genres,
-                   shop_link, isbn, classification, goodreads_link,
+                   shop_link, isbn, page_count, classification, goodreads_link,
                    price_gbp, price_inr, review, star_rating
             FROM books WHERE asin = ?
             """,
@@ -226,12 +228,13 @@ class DatabaseManager:
             genres=row[15],
             shop_link=row[16],
             isbn=row[17],
-            classification=row[18],
-            goodreads_link=row[19],
-            price_gbp=row[20],
-            price_inr=row[21],
-            review=row[22],
-            star_rating=row[23],
+            page_count=row[18],
+            classification=row[19],
+            goodreads_link=row[20],
+            price_gbp=row[21],
+            price_inr=row[22],
+            review=row[23],
+            star_rating=row[24],
         )
 
     def get_all_books(self, sort_by: str = "title") -> list[Book]:
@@ -243,7 +246,7 @@ class DatabaseManager:
                    created_at, updated_at,
                    purchase_date, status, format, notes,
                    start_date, end_date, reading_time, genres,
-                   shop_link, isbn, classification, goodreads_link,
+                   shop_link, isbn, page_count, classification, goodreads_link,
                    price_gbp, price_inr, review, star_rating
             FROM books
             ORDER BY title
@@ -270,12 +273,13 @@ class DatabaseManager:
                 genres=row[15],
                 shop_link=row[16],
                 isbn=row[17],
-                classification=row[18],
-                goodreads_link=row[19],
-                price_gbp=row[20],
-                price_inr=row[21],
-                review=row[22],
-                star_rating=row[23],
+                page_count=row[18],
+                classification=row[19],
+                goodreads_link=row[20],
+                price_gbp=row[21],
+                price_inr=row[22],
+                review=row[23],
+                star_rating=row[24],
             )
             for row in cursor.fetchall()
         ]
@@ -311,6 +315,7 @@ class DatabaseManager:
             "genres",
             "shop_link",
             "isbn",
+            "page_count",
             "classification",
             "goodreads_link",
             "price_gbp",

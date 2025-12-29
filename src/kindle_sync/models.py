@@ -71,6 +71,7 @@ class Book:
     genres: str | None = None  # Comma-separated genres
     shop_link: str | None = None  # Amazon or other shop link
     isbn: str | None = None
+    page_count: int | None = None  # Number of pages
     classification: str | None = None  # Dewey decimal classification
     goodreads_link: str | None = None
     price_gbp: float | None = None  # Price in GBP
