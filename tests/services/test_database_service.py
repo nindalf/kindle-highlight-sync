@@ -435,3 +435,194 @@ class TestSearchHighlights:
 
         results = temp_db.search_highlights("nonexistent")
         assert results == []
+
+
+class TestBookMetadataOperations:
+    """Tests for book metadata update operations."""
+
+    def test_update_book_metadata_all_fields(self, temp_db, sample_book):
+        """Test updating all metadata fields."""
+        temp_db.insert_book(sample_book)
+
+        # update_book_metadata returns None, not bool
+        temp_db.update_book_metadata(
+            sample_book.asin,
+            title="Updated Title",
+            genres="Fiction,Mystery",
+            page_count=250,
+            review="Great book!",
+            star_rating=4.5,
+            goodreads_link="https://goodreads.com/book/123",
+        )
+
+        book = temp_db.get_book(sample_book.asin)
+        assert book.title == "Updated Title"
+        assert book.genres == "Fiction,Mystery"
+        assert book.page_count == 250
+        assert book.review == "Great book!"
+        assert book.star_rating == 4.5
+        assert book.goodreads_link == "https://goodreads.com/book/123"
+
+    def test_update_book_metadata_partial_fields(self, temp_db, sample_book):
+        """Test updating only some metadata fields."""
+        temp_db.insert_book(sample_book)
+        original_author = sample_book.author
+
+        temp_db.update_book_metadata(sample_book.asin, title="New Title")
+
+        book = temp_db.get_book(sample_book.asin)
+        assert book.title == "New Title"
+        assert book.author == original_author  # Unchanged
+
+    def test_update_book_metadata_nonexistent_book(self, temp_db):
+        """Test updating metadata for nonexistent book."""
+        # Should not raise, just do nothing
+        temp_db.update_book_metadata("NONEXISTENT", title="New Title")
+        # No assertion needed - just verify it doesn't raise
+
+    def test_toggle_highlight_visibility(self, temp_db, sample_book, sample_highlight):
+        """Test toggling highlight visibility."""
+        temp_db.insert_book(sample_book)
+        temp_db.insert_highlight(sample_highlight)
+
+        # Initially not hidden (default)
+        highlight = temp_db.get_highlights(sample_book.asin)[0]
+        assert highlight.is_hidden is False
+
+        # Toggle to hidden
+        is_hidden = temp_db.toggle_highlight_visibility(sample_highlight.id)
+        assert is_hidden is True
+
+        highlight = temp_db.get_highlights(sample_book.asin)[0]
+        assert highlight.is_hidden is True
+
+        # Toggle back to visible
+        is_hidden = temp_db.toggle_highlight_visibility(sample_highlight.id)
+        assert is_hidden is False
+
+        highlight = temp_db.get_highlights(sample_book.asin)[0]
+        assert highlight.is_hidden is False
+
+    def test_toggle_highlight_visibility_nonexistent(self, temp_db):
+        """Test toggling visibility for nonexistent highlight."""
+        # Should raise DatabaseError for nonexistent highlight
+        from kindle_sync.services.database_service import DatabaseError
+
+        with pytest.raises(DatabaseError, match="not found"):
+            temp_db.toggle_highlight_visibility("NONEXISTENT")
+
+
+class TestSettingsOperations:
+    """Tests for settings storage operations."""
+
+    def test_get_set_export_directory(self, temp_db):
+        """Test getting and setting export directory."""
+        # Initially None
+        assert temp_db.get_export_directory() is None
+
+        # Set directory
+        temp_db.set_export_directory("/path/to/exports")
+        assert temp_db.get_export_directory() == "/path/to/exports"
+
+        # Update directory
+        temp_db.set_export_directory("/new/path")
+        assert temp_db.get_export_directory() == "/new/path"
+
+    def test_get_set_images_directory(self, temp_db):
+        """Test getting and setting images directory."""
+        # Initially None
+        assert temp_db.get_images_directory() is None
+
+        # Set directory
+        temp_db.set_images_directory("/path/to/images")
+        assert temp_db.get_images_directory() == "/path/to/images"
+
+        # Update directory
+        temp_db.set_images_directory("/new/path")
+        assert temp_db.get_images_directory() == "/new/path"
+
+
+class TestStatisticsOperations:
+    """Tests for statistics operations."""
+
+    def test_get_all_books_with_counts(self, temp_db):
+        """Test getting all books with highlight counts."""
+        book1 = Book(
+            asin="BOOK1",
+            title="Book One",
+            author="Author One",
+            created_at=datetime.now(),
+            updated_at=datetime.now(),
+        )
+        book2 = Book(
+            asin="BOOK2",
+            title="Book Two",
+            author="Author Two",
+            created_at=datetime.now(),
+            updated_at=datetime.now(),
+        )
+        temp_db.insert_book(book1)
+        temp_db.insert_book(book2)
+
+        # Add highlights to first book
+        for i in range(3):
+            h = Highlight(
+                id=f"h{i}",
+                book_asin="BOOK1",
+                text=f"Highlight {i}",
+                created_at=datetime.now(),
+            )
+            temp_db.insert_highlight(h)
+
+        # Add one highlight to second book
+        h = Highlight(id="h3", book_asin="BOOK2", text="Highlight", created_at=datetime.now())
+        temp_db.insert_highlight(h)
+
+        books_with_counts = temp_db.get_all_books_with_counts()
+
+        assert len(books_with_counts) == 2
+        book1_with_count = next(b for b in books_with_counts if b.book.asin == "BOOK1")
+        book2_with_count = next(b for b in books_with_counts if b.book.asin == "BOOK2")
+
+        assert book1_with_count.highlight_count == 3
+        assert book2_with_count.highlight_count == 1
+
+    def test_get_all_books_with_counts_no_books(self, temp_db):
+        """Test getting books with counts when database is empty."""
+        books_with_counts = temp_db.get_all_books_with_counts()
+        assert books_with_counts == []
+
+    def test_get_statistics(self, temp_db):
+        """Test getting database statistics."""
+        # Add 3 books
+        for i in range(3):
+            book = Book(
+                asin=f"BOOK{i}",
+                title=f"Book {i}",
+                author=f"Author {i}",
+                created_at=datetime.now(),
+                updated_at=datetime.now(),
+            )
+            temp_db.insert_book(book)
+
+        # Add 5 highlights
+        for i in range(5):
+            h = Highlight(
+                id=f"h{i}",
+                book_asin="BOOK0",
+                text=f"Highlight {i}",
+                created_at=datetime.now(),
+            )
+            temp_db.insert_highlight(h)
+
+        stats = temp_db.get_statistics()
+
+        assert stats["total_books"] == 3
+        assert stats["total_highlights"] == 5
+
+    def test_get_statistics_empty_db(self, temp_db):
+        """Test getting statistics from empty database."""
+        stats = temp_db.get_statistics()
+
+        assert stats["total_books"] == 0
+        assert stats["total_highlights"] == 0

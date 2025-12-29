@@ -499,3 +499,186 @@ class TestRetryDecorator:
 
         # API tries 3 times, then HTML fallback tries 3 times = 6 total
         assert mock_session.get.call_count == 6
+
+
+class TestGoodreadsIntegration:
+    """Tests for Goodreads metadata scraping."""
+
+    def test_scrape_goodreads_metadata_success(self, scraper, mock_session):
+        """Test successful Goodreads metadata scraping."""
+        html = """
+        <html>
+            <span class="BookPageMetadataSection__genreButton">
+                <span>Fiction</span>
+            </span>
+            <span class="BookPageMetadataSection__genreButton">
+                <span>Science Fiction</span>
+            </span>
+            <span class="BookPageMetadataSection__genreButton">
+                <span>Audiobook</span>
+            </span>
+            <div data-testid="pagesFormat">352 pages, Hardcover</div>
+        </html>
+        """
+
+        mock_response = Mock()
+        mock_response.text = html
+        mock_response.url = "https://www.goodreads.com/book/show/12345"
+        mock_response.status_code = 200
+        mock_response.raise_for_status = Mock()
+        mock_session.get.return_value = mock_response
+
+        genres, page_count, link = scraper._scrape_goodreads_metadata("9780735211292")
+
+        assert genres == "Fiction,Science Fiction"
+        assert page_count == 352
+        assert link == "https://www.goodreads.com/book/show/12345"
+
+    def test_scrape_goodreads_metadata_no_genres(self, scraper, mock_session):
+        """Test Goodreads scraping with no genres found."""
+        html = """
+        <html>
+            <div data-testid="pagesFormat">250 pages</div>
+        </html>
+        """
+
+        mock_response = Mock()
+        mock_response.text = html
+        mock_response.url = "https://www.goodreads.com/book/show/12345"
+        mock_response.status_code = 200
+        mock_response.raise_for_status = Mock()
+        mock_session.get.return_value = mock_response
+
+        genres, page_count, link = scraper._scrape_goodreads_metadata("1234567890")
+
+        assert genres is None
+        assert page_count == 250
+        assert link == "https://www.goodreads.com/book/show/12345"
+
+    def test_scrape_goodreads_metadata_no_page_count(self, scraper, mock_session):
+        """Test Goodreads scraping with no page count found."""
+        html = """
+        <html>
+            <span class="BookPageMetadataSection__genreButton">
+                <span>Mystery</span>
+            </span>
+        </html>
+        """
+
+        mock_response = Mock()
+        mock_response.text = html
+        mock_response.url = "https://www.goodreads.com/book/show/12345"
+        mock_response.status_code = 200
+        mock_response.raise_for_status = Mock()
+        mock_session.get.return_value = mock_response
+
+        genres, page_count, link = scraper._scrape_goodreads_metadata("1234567890")
+
+        assert genres == "Mystery"
+        assert page_count is None
+        assert link == "https://www.goodreads.com/book/show/12345"
+
+    def test_scrape_goodreads_metadata_network_error(self, scraper, mock_session, monkeypatch):
+        """Test Goodreads scraping with network error."""
+        import time
+
+        monkeypatch.setattr(time, "sleep", lambda x: None)
+
+        mock_session.get.side_effect = requests.RequestException("Network error")
+
+        # Should return None values on error (prints warning but doesn't raise)
+        genres, page_count, link = scraper._scrape_goodreads_metadata("1234567890")
+
+        assert genres is None
+        assert page_count is None
+        assert link is None
+
+    def test_scrape_goodreads_metadata_filters_audiobook(self, scraper, mock_session):
+        """Test that Audiobook genre is filtered out."""
+        html = """
+        <html>
+            <span class="BookPageMetadataSection__genreButton">
+                <span>Fiction</span>
+            </span>
+            <span class="BookPageMetadataSection__genreButton">
+                <span>Audiobook</span>
+            </span>
+            <span class="BookPageMetadataSection__genreButton">
+                <span>Fantasy</span>
+            </span>
+        </html>
+        """
+
+        mock_response = Mock()
+        mock_response.text = html
+        mock_response.url = "https://www.goodreads.com/book/show/12345"
+        mock_response.status_code = 200
+        mock_response.raise_for_status = Mock()
+        mock_session.get.return_value = mock_response
+
+        genres, page_count, link = scraper._scrape_goodreads_metadata("1234567890")
+
+        assert genres == "Fiction,Fantasy"
+        assert "Audiobook" not in genres
+
+    def test_scrape_goodreads_metadata_removes_duplicates(self, scraper, mock_session):
+        """Test that duplicate genres are removed."""
+        html = """
+        <html>
+            <span class="BookPageMetadataSection__genreButton">
+                <span>Fiction</span>
+            </span>
+            <span class="BookPageMetadataSection__genreButton">
+                <span>Fiction</span>
+            </span>
+            <span class="BookPageMetadataSection__genreButton">
+                <span>Mystery</span>
+            </span>
+        </html>
+        """
+
+        mock_response = Mock()
+        mock_response.text = html
+        mock_response.url = "https://www.goodreads.com/book/show/12345"
+        mock_response.status_code = 200
+        mock_response.raise_for_status = Mock()
+        mock_session.get.return_value = mock_response
+
+        genres, page_count, link = scraper._scrape_goodreads_metadata("1234567890")
+
+        assert genres == "Fiction,Mystery"
+
+
+class TestISBNScraping:
+    """Tests for ISBN scraping functionality."""
+
+    def test_scrape_isbn_success(self, scraper, mock_session):
+        """Test successful ISBN scraping."""
+        mock_response = _mock_isbn_response("978-0735211292")
+        mock_session.get.return_value = mock_response
+
+        isbn = scraper._scrape_isbn("B01N5AX61W")
+
+        assert isbn == "978-0735211292"
+
+    def test_scrape_isbn_not_found(self, scraper, mock_session):
+        """Test ISBN scraping when ISBN is not found."""
+        mock_response = _mock_isbn_response(None)
+        mock_session.get.return_value = mock_response
+
+        isbn = scraper._scrape_isbn("B01N5AX61W")
+
+        assert isbn is None
+
+    def test_scrape_isbn_network_error(self, scraper, mock_session, monkeypatch):
+        """Test ISBN scraping with network error."""
+        import time
+
+        monkeypatch.setattr(time, "sleep", lambda x: None)
+
+        mock_session.get.side_effect = requests.RequestException("Network error")
+
+        isbn = scraper._scrape_isbn("B01N5AX61W")
+
+        # Should return None on error (doesn't raise)
+        assert isbn is None

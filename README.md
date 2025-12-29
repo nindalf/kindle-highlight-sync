@@ -231,6 +231,6 @@ Inspired by [obsidian-kindle-plugin](https://github.com/hadynz/obsidian-kindle-p
 - [x] Figure out why Dopamine nation and Project Hail Mary aren't being parsed.
 - [x] Figure out why highlights are being misclassified. Like the ones at the end of Circe. Or Circe in the middle of A Little Hatred.
 - [x] Optimise scraping logic. 
-- [ ] Redo tests.
+- [x] Redo tests.
 - [ ] Add a pre-commit hook that runs `ruff` and `ty`
 - [ ] Explore htmx in the frontend.
