@@ -59,8 +59,8 @@ class DatabaseManager:
                 isbn TEXT,
                 classification TEXT,
                 goodreads_link TEXT,
-                price_gbp TEXT,
-                price_inr TEXT,
+                price_gbp REAL,
+                price_inr REAL,
                 review TEXT,
                 star_rating REAL
             )

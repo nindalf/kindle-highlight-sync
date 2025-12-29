@@ -73,8 +73,8 @@ class Book:
     isbn: str | None = None
     classification: str | None = None  # Dewey decimal classification
     goodreads_link: str | None = None
-    price_gbp: str | None = None  # Format: "£X.XX"
-    price_inr: str | None = None  # Format: "₹X.XX"
+    price_gbp: float | None = None  # Price in GBP
+    price_inr: float | None = None  # Price in INR
     review: str | None = None  # User's review of the book
     star_rating: float | None = None  # Rating out of 5.0
 

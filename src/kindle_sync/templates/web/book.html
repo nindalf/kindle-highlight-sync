@@ -273,9 +273,13 @@ Highlights{% endblock %} {% block extra_css %}
         {% endif %} {% if book.classification %}
         <div><strong>Classification:</strong> {{ book.classification }}</div>
         {% endif %} {% if book.price_gbp %}
-        <div><strong>Price (GBP):</strong> {{ book.price_gbp }}</div>
+        <div>
+            <strong>Price (GBP):</strong> £{{ "%.2f"|format(book.price_gbp) }}
+        </div>
         {% endif %} {% if book.price_inr %}
-        <div><strong>Price (INR):</strong> {{ book.price_inr }}</div>
+        <div>
+            <strong>Price (INR):</strong> ₹{{ "%.2f"|format(book.price_inr) }}
+        </div>
         {% endif %} {% if book.shop_link %}
         <div>
             <strong>Shop:</strong>
@@ -463,8 +467,8 @@ Highlights{% endblock %} {% block extra_css %}
                     type="text"
                     id="price_gbp"
                     name="price_gbp"
-                    value="{{ book.price_gbp or '' }}"
-                    placeholder="£9.99"
+                    value="{% if book.price_gbp %}{{ '%.2f'|format(book.price_gbp) }}{% endif %}"
+                    placeholder="9.99"
                 />
             </div>
             <div class="form-group">
@@ -473,8 +477,8 @@ Highlights{% endblock %} {% block extra_css %}
                     type="text"
                     id="price_inr"
                     name="price_inr"
-                    value="{{ book.price_inr or '' }}"
-                    placeholder="₹299"
+                    value="{% if book.price_inr %}{{ '%.2f'|format(book.price_inr) }}{% endif %}"
+                    placeholder="299"
                 />
             </div>
             <div class="form-group">
@@ -603,7 +607,16 @@ Highlights{% endblock %} {% block extra_css %}
             const data = {};
             for (let [key, value] of formData.entries()) {
                 if (value && value.trim() !== "") {
-                    data[key] = value.trim();
+                    // Parse price fields as floats
+                    if (key === 'price_gbp' || key === 'price_inr') {
+                        // Remove currency symbols and commas
+                        const cleaned = value.replace(/[£₹,\s]/g, '');
+                        data[key] = parseFloat(cleaned) || null;
+                    } else if (key === 'star_rating') {
+                        data[key] = parseFloat(value.trim()) || null;
+                    } else {
+                        data[key] = value.trim();
+                    }
                 } else {
                     data[key] = null;
                 }

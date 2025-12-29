@@ -36,10 +36,10 @@ goodreads_link: "{{ book.goodreads_link }}"
 shop_link: "{{ book.shop_link }}"
 {% endif %}
 {% if book.price_gbp %}
-price_gbp: "{{ book.price_gbp }}"
+price_gbp: {{ book.price_gbp }}
 {% endif %}
 {% if book.price_inr %}
-price_inr: "{{ book.price_inr }}"
+price_inr: {{ book.price_inr }}
 {% endif %}
 {% if book.star_rating %}
 star_rating: {{ book.star_rating }}
