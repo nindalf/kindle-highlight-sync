@@ -28,7 +28,9 @@ Highlights{% endblock %} {% block extra_css %}
         border-radius: 4px;
         font-size: 14px;
         cursor: pointer;
-        margin-top: 10px;
+        margin-top: 15px;
+        margin-bottom: 20px;
+        display: block;
     }
     .edit-book-btn:hover {
         background: #0056b3;
@@ -225,114 +227,187 @@ Highlights{% endblock %} {% block extra_css %}
     .btn-secondary:hover {
         background: #545b62;
     }
+    .book-header {
+        display: flex;
+        gap: 30px;
+        align-items: flex-start;
+        margin-bottom: 30px;
+    }
+    .book-detail-cover {
+        width: 200px;
+        height: auto;
+        max-height: 300px;
+        object-fit: contain;
+        border-radius: 8px;
+        flex-shrink: 0;
+        background: #f9f9f9;
+        padding: 12px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+    .book-header-content {
+        flex: 1;
+        min-width: 0;
+    }
+    .book-header-content h2 {
+        margin-top: 0;
+        margin-bottom: 10px;
+        font-size: 28px;
+        line-height: 1.3;
+    }
+    .book-header-content .author {
+        font-size: 18px;
+        color: #666;
+        margin-bottom: 12px;
+    }
+    .book-header-content .meta {
+        font-size: 14px;
+        color: #999;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 15px;
+    }
+    .book-details {
+        margin-top: 15px;
+        margin-bottom: 20px;
+        padding: 15px;
+        background: #f9f9f9;
+        border: 1px solid #e0e0e0;
+        border-radius: 5px;
+        font-size: 14px;
+        box-shadow: none;
+    }
+    .book-details > div {
+        padding: 8px 0;
+        border-bottom: 1px solid #f0f0f0;
+    }
+    .book-details > div:last-child {
+        border-bottom: none;
+    }
+    .book-details strong {
+        color: #666;
+        font-weight: 600;
+        margin-right: 8px;
+    }
+    .star-rating-section {
+        margin-bottom: 20px;
+    }
+    .review-section {
+        margin-bottom: 20px;
+    }
+    @media (max-width: 768px) {
+        .book-header {
+            flex-direction: column;
+        }
+        .book-detail-cover {
+            width: 100%;
+            max-width: 200px;
+            align-self: center;
+        }
+    }
 </style>
 {% endblock %} {% block content %}
 <a href="{{ url_for('index') }}" class="back-link">← Back to all books</a>
 
 <div class="book-header">
-    <h2>{{ book.title }}</h2>
-    <div class="author">by {{ book.author }}</div>
-    <div class="meta">
-        <span>ASIN: {{ book.asin }}</span>
-        <span>{{ highlights|length }} highlights</span>
-        {% if book.last_annotated_date %}<span
-            >Last annotated: {{ format_date(book.last_annotated_date) }}</span
-        >{% endif %}
-    </div>
-
-    {% if book.status or book.format or book.isbn or book.genres or book.notes
-    %}
-    <div
-        class="book-details"
-        style="
-            margin-top: 15px;
-            padding: 15px;
-            background: #f9f9f9;
-            border-radius: 5px;
-            font-size: 14px;
-        "
-    >
-        {% if book.status %}
-        <div><strong>Status:</strong> {{ book.status }}</div>
-        {% endif %} {% if book.format %}
-        <div><strong>Format:</strong> {{ book.format }}</div>
-        {% endif %} {% if book.isbn %}
-        <div><strong>ISBN:</strong> {{ book.isbn }}</div>
-        {% endif %} {% if book.purchase_date %}
-        <div>
-            <strong>Purchased:</strong> {{ format_date(book.purchase_date) }}
-        </div>
-        {% endif %} {% if book.start_date %}
-        <div><strong>Started:</strong> {{ format_date(book.start_date) }}</div>
-        {% endif %} {% if book.end_date %}
-        <div><strong>Finished:</strong> {{ format_date(book.end_date) }}</div>
-        {% endif %} {% if book.reading_time %}
-        <div><strong>Reading Time:</strong> {{ book.reading_time }}</div>
-        {% endif %} {% if book.genres %}
-        <div><strong>Genres:</strong> {{ book.genres }}</div>
-        {% endif %} {% if book.classification %}
-        <div><strong>Classification:</strong> {{ book.classification }}</div>
-        {% endif %} {% if book.price_gbp %}
-        <div>
-            <strong>Price (GBP):</strong> £{{ "%.2f"|format(book.price_gbp) }}
-        </div>
-        {% endif %} {% if book.price_inr %}
-        <div>
-            <strong>Price (INR):</strong> ₹{{ "%.2f"|format(book.price_inr) }}
-        </div>
-        {% endif %} {% if book.shop_link %}
-        <div>
-            <strong>Shop:</strong>
-            <a href="{{ book.shop_link }}" target="_blank">View</a>
-        </div>
-        {% endif %} {% if book.goodreads_link %}
-        <div>
-            <strong>Goodreads:</strong>
-            <a href="{{ book.goodreads_link }}" target="_blank">View</a>
-        </div>
-        {% endif %} {% if book.notes %}
-        <div style="margin-top: 10px">
-            <strong>Notes:</strong> {{ book.notes }}
-        </div>
-        {% endif %}
-    </div>
+    {% if book.image_url %}
+    <img
+        src="{{ get_local_image_url(book.image_url) }}"
+        alt="{{ book.title }}"
+        class="book-detail-cover"
+        onerror="this.style.display = 'none'"
+    />
     {% endif %}
-
-    <div class="star-rating-section">
-        <div class="star-rating-header">
-            <h3>My Rating</h3>
-            <span class="save-status" id="ratingSaveStatus">✓ Saved</span>
-        </div>
-        <div class="star-container">
-            <span class="star" data-rating="1">★</span>
-            <span class="star" data-rating="2">★</span>
-            <span class="star" data-rating="3">★</span>
-            <span class="star" data-rating="4">★</span>
-            <span class="star" data-rating="5">★</span>
-            <span class="rating-value" id="ratingValue"
-                >{{ book.star_rating if book.star_rating else 'Not rated'
+    <div class="book-header-content">
+        <h2>{{ book.title }}</h2>
+        <div class="author">by {{ book.author }}</div>
+        <div class="meta">
+            <span>ASIN: {{ book.asin }}</span>
+            <span>{{ highlights|length }} highlights</span>
+            {% if book.last_annotated_date %}<span
+                >Last annotated: {{ format_date(book.last_annotated_date)
                 }}</span
-            >
+            >{% endif %}
         </div>
     </div>
+</div>
 
-    <div class="review-section">
-        <div class="review-header">
-            <h3>My Review</h3>
-            <span class="save-status" id="saveStatus">✓ Saved</span>
-        </div>
-        <textarea
-            class="review-textarea"
-            id="reviewTextarea"
-            placeholder="Write your review of this book..."
+{% if book.status or book.format or book.isbn or book.genres or book.notes %}
+<div class="book-details">
+    {% if book.status %}
+    <div><strong>Status:</strong> {{ book.status }}</div>
+    {% endif %} {% if book.format %}
+    <div><strong>Format:</strong> {{ book.format }}</div>
+    {% endif %} {% if book.isbn %}
+    <div><strong>ISBN:</strong> {{ book.isbn }}</div>
+    {% endif %} {% if book.purchase_date %}
+    <div><strong>Purchased:</strong> {{ format_date(book.purchase_date) }}</div>
+    {% endif %} {% if book.start_date %}
+    <div><strong>Started:</strong> {{ format_date(book.start_date) }}</div>
+    {% endif %} {% if book.end_date %}
+    <div><strong>Finished:</strong> {{ format_date(book.end_date) }}</div>
+    {% endif %} {% if book.reading_time %}
+    <div><strong>Reading Time:</strong> {{ book.reading_time }}</div>
+    {% endif %} {% if book.genres %}
+    <div><strong>Genres:</strong> {{ book.genres }}</div>
+    {% endif %} {% if book.classification %}
+    <div><strong>Classification:</strong> {{ book.classification }}</div>
+    {% endif %} {% if book.price_gbp %}
+    <div>
+        <strong>Price (GBP):</strong> £{{ "%.2f"|format(book.price_gbp) }}
+    </div>
+    {% endif %} {% if book.price_inr %}
+    <div>
+        <strong>Price (INR):</strong> ₹{{ "%.2f"|format(book.price_inr) }}
+    </div>
+    {% endif %} {% if book.shop_link %}
+    <div>
+        <strong>Shop:</strong>
+        <a href="{{ book.shop_link }}" target="_blank">View</a>
+    </div>
+    {% endif %} {% if book.goodreads_link %}
+    <div>
+        <strong>Goodreads:</strong>
+        <a href="{{ book.goodreads_link }}" target="_blank">View</a>
+    </div>
+    {% endif %} {% if book.notes %}
+    <div style="margin-top: 10px"><strong>Notes:</strong> {{ book.notes }}</div>
+    {% endif %}
+</div>
+
+<button class="edit-book-btn" onclick="openEditModal()">
+    Edit Book Details
+</button>
+{% endif %}
+
+<div class="star-rating-section">
+    <div class="star-rating-header">
+        <h3>My Rating</h3>
+        <span class="save-status" id="ratingSaveStatus">✓ Saved</span>
+    </div>
+    <div class="star-container">
+        <span class="star" data-rating="1">★</span>
+        <span class="star" data-rating="2">★</span>
+        <span class="star" data-rating="3">★</span>
+        <span class="star" data-rating="4">★</span>
+        <span class="star" data-rating="5">★</span>
+        <span class="rating-value" id="ratingValue"
+            >{{ book.star_rating if book.star_rating else 'Not rated' }}</span
         >
+    </div>
+</div>
+
+<div class="review-section">
+    <div class="review-header">
+        <h3>My Review</h3>
+        <span class="save-status" id="saveStatus">✓ Saved</span>
+    </div>
+    <textarea
+        class="review-textarea"
+        id="reviewTextarea"
+        placeholder="Write your review of this book..."
+    >
 {{ book.review or '' }}</textarea
-        >
-    </div>
-
-    <button class="edit-book-btn" onclick="openEditModal()">
-        Edit Book Details
-    </button>
+    >
 </div>
 
 <div id="editBookModal" class="modal">

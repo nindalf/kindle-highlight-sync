@@ -3,7 +3,7 @@
 from datetime import datetime
 from pathlib import Path
 
-from flask import Flask, abort, g, jsonify, render_template, request
+from flask import Flask, abort, g, jsonify, render_template, request, send_from_directory
 
 from kindle_sync.models import AmazonRegion, ExportFormat, HighlightColor
 from kindle_sync.services import AuthService, ExportService, SyncService
@@ -89,10 +89,19 @@ def create_app(db_path: str | None = None) -> Flask:
             }
             return color_map.get(color, "yellow")
 
+        def get_local_image_url(image_url: str | None) -> str | None:
+            """Extract filename from image URL and return local image URL."""
+            if not image_url:
+                return None
+            # Extract filename from URL (last part after the last /)
+            filename = image_url.rstrip("/").split("/")[-1]
+            return f"/images/{filename}"
+
         return {
             "format_date": format_date,
             "format_datetime": format_datetime,
             "color_class": color_class,
+            "get_local_image_url": get_local_image_url,
         }
 
     # ============================================================================
@@ -176,6 +185,27 @@ def create_app(db_path: str | None = None) -> Flask:
     def settings():
         """Show settings page with sync, export, and logout options."""
         return render_template("settings.html")
+
+    @app.route("/images/<filename>")
+    def serve_image(filename: str):
+        """Serve book cover images from the configured images directory."""
+        from kindle_sync.config import Config
+
+        db = get_db()
+        images_dir = db.get_images_directory()
+
+        # Use default if not set
+        if not images_dir:
+            images_dir = Config.DEFAULT_IMAGES_DIR
+
+        # Expand user home directory if needed
+        images_path = Path(images_dir).expanduser()
+
+        # Security: ensure the file exists and is in the images directory
+        if not images_path.exists():
+            abort(404)
+
+        return send_from_directory(images_path, filename)
 
     # ============================================================================
     # API Routes

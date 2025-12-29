@@ -226,7 +226,7 @@ Inspired by [obsidian-kindle-plugin](https://github.com/hadynz/obsidian-kindle-p
 ## Future Features
 
 - [x] Migrate prices to floats
-- [ ] Show images locally.
+- [x] Show images locally.
 - [ ] Use ISBN to fetch genres and page count from Goodreads.
 - [ ] Figure out why Dopamine nation and Project Hail Mary aren't being parsed.
 - [ ] Figure out why highlights are being misclassified. Like the ones at the end of Circe. Or Circe in the middle of A Little Hatred.
