@@ -60,50 +60,63 @@ class SyncService:
 
             scraper = KindleScraper(auth.get_session(), region)
 
-            if progress_callback:
-                progress_callback("Fetching books from Amazon...")
+            # Determine which books to sync
+            if full:
+                # Full sync: scrape books from Amazon
+                if progress_callback:
+                    progress_callback("Fetching books from Amazon...")
 
-            scraped_books = scraper.scrape_books()
-            if not scraped_books:
-                db.close()
-                return SyncResult(success=True, message="No books found", books_synced=0)
-
-            if book_asins:
-                scraped_books = [b for b in scraped_books if b.asin in book_asins]
+                scraped_books = scraper.scrape_books()
                 if not scraped_books:
                     db.close()
-                    return SyncResult(
-                        success=False,
-                        message="None of the specified books found",
-                        error=f"Books not found: {', '.join(book_asins)}",
-                    )
+                    return SyncResult(success=True, message="No books found", books_synced=0)
 
-            for book in scraped_books:
-                # Fetch Goodreads data if we have an ISBN
-                if book.isbn:
-                    try:
-                        genres, page_count, goodreads_link = scraper.scrape_goodreads_metadata(
-                            book.isbn
+                if book_asins:
+                    scraped_books = [b for b in scraped_books if b.asin in book_asins]
+                    if not scraped_books:
+                        db.close()
+                        return SyncResult(
+                            success=False,
+                            message="None of the specified books found",
+                            error=f"Books not found: {', '.join(book_asins)}",
                         )
-                        if genres:
-                            book.genres = genres
-                        if page_count:
-                            book.page_count = page_count
-                        if goodreads_link:
-                            book.goodreads_link = goodreads_link
-                    except Exception as e:
-                        print(f"Failed to fetch Goodreads data for {book.title}: {e}")
 
-                db.insert_book(book)
+                # Insert/update books in database
+                for book in scraped_books:
+                    db.insert_book(book)
+
+                books_to_sync = scraped_books
+            else:
+                # Incremental sync: use books already in database
+                if progress_callback:
+                    progress_callback("Loading books from database...")
+
+                if book_asins:
+                    books_to_sync = [db.get_book(asin) for asin in book_asins]
+                    books_to_sync = [b for b in books_to_sync if b is not None]
+                    if not books_to_sync:
+                        db.close()
+                        return SyncResult(
+                            success=False,
+                            message="None of the specified books found in database",
+                            error=f"Books not found: {', '.join(book_asins)}",
+                        )
+                else:
+                    books_to_sync = db.get_all_books()
+                    if not books_to_sync:
+                        db.close()
+                        return SyncResult(
+                            success=True, message="No books in database", books_synced=0
+                        )
 
             total_new = 0
             total_deleted = 0
             book_details = []
 
-            for i, book in enumerate(scraped_books, 1):
+            for i, book in enumerate(books_to_sync, 1):
                 if progress_callback:
                     progress_callback(
-                        f"Syncing '{book.title}' by {book.author} ({i}/{len(scraped_books)})"
+                        f"Syncing '{book.title}' by {book.author} ({i}/{len(books_to_sync)})"
                     )
 
                 highlights = scraper.scrape_highlights(book)
@@ -144,7 +157,7 @@ class SyncService:
             return SyncResult(
                 success=True,
                 message="Sync complete",
-                books_synced=len(scraped_books),
+                books_synced=len(books_to_sync),
                 new_highlights=total_new,
                 deleted_highlights=total_deleted,
                 book_details=book_details,

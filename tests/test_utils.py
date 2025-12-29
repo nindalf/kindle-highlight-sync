@@ -5,9 +5,9 @@ import time
 import pytest
 
 from kindle_sync.utils import (
-    fletcher16,
     retry,
     sanitize_filename,
+    sha,
     slugify,
 )
 
@@ -17,40 +17,40 @@ class TestFletcher16:
 
     def test_basic_hash(self):
         """Test basic hash generation."""
-        result = fletcher16("Hello, World!")
-        assert len(result) == 4
+        result = sha("Hello, World!")
+        assert len(result) == 8
         assert result.isalnum()
 
     def test_case_insensitive(self):
         """Test that hash is case insensitive."""
-        hash1 = fletcher16("Atomic Habits")
-        hash2 = fletcher16("atomic habits")
-        hash3 = fletcher16("ATOMIC HABITS")
+        hash1 = sha("Atomic Habits")
+        hash2 = sha("atomic habits")
+        hash3 = sha("ATOMIC HABITS")
         assert hash1 == hash2 == hash3
 
     def test_deterministic(self):
         """Test that same input produces same hash."""
         text = "You do not rise to the level of your goals"
-        hash1 = fletcher16(text)
-        hash2 = fletcher16(text)
+        hash1 = sha(text)
+        hash2 = sha(text)
         assert hash1 == hash2
 
     def test_different_text_different_hash(self):
         """Test that different text produces different hash."""
-        hash1 = fletcher16("First text")
-        hash2 = fletcher16("Second text")
+        hash1 = sha("First text")
+        hash2 = sha("Second text")
         assert hash1 != hash2
 
     def test_empty_string(self):
         """Test hash of empty string."""
-        result = fletcher16("")
-        assert len(result) == 4
-        assert result == "0000"
+        result = sha("")
+        assert len(result) == 8
+        assert result == "e3b0c442"
 
     def test_unicode(self):
         """Test hash with unicode characters."""
-        result = fletcher16("Hello 世界 🌍")
-        assert len(result) == 4
+        result = sha("Hello 世界 🌍")
+        assert len(result) == 8
         assert result.isalnum()
 
 

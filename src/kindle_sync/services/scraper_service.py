@@ -9,7 +9,7 @@ from bs4 import BeautifulSoup
 
 from kindle_sync.config import Config
 from kindle_sync.models import AmazonRegion, Book, Highlight, HighlightColor
-from kindle_sync.utils import fletcher16, retry
+from kindle_sync.utils import retry, sha
 
 
 class ScraperError(Exception):
@@ -253,9 +253,8 @@ class KindleScraper:
             if date_text := date_input.get("value", ""):
                 last_annotated_date = self._parse_date(date_text)
 
-        # Extract ISBN from product page
         isbn = self._scrape_isbn(asin)
-        print(title, isbn)
+        (genres, page_count, goodreads_link) = self._scrape_goodreads_metadata(isbn)
 
         return Book(
             asin=asin,
@@ -267,6 +266,9 @@ class KindleScraper:
             isbn=isbn,
             created_at=datetime.now(),
             updated_at=datetime.now(),
+            genres=genres,
+            page_count=page_count,
+            goodreads_link=goodreads_link,
         )
 
     def _parse_highlight_element(self, element: Any, book_asin: str) -> Highlight:
@@ -300,7 +302,7 @@ class KindleScraper:
             note = BeautifulSoup(note_html, "html.parser").get_text(strip=True)
 
         return Highlight(
-            id=fletcher16(text),
+            id=sha(text),
             book_asin=book_asin,
             text=text,
             location=location,
@@ -319,7 +321,7 @@ class KindleScraper:
         2. Extract from ISBN feature div
         """
         # Construct product page URL based on region
-        product_url = f"https://{self.region_config.hostname}/dp/{asin}"
+        product_url = f"https://{self.region_config.hostname}/gp/product/{asin}"
 
         try:
             response = self.session.get(product_url, timeout=Config.REQUEST_TIMEOUT)
@@ -354,7 +356,7 @@ class KindleScraper:
         return None
 
     @retry(max_attempts=3)
-    def scrape_goodreads_metadata(self, isbn: str) -> tuple[str | None, int | None, str | None]:
+    def _scrape_goodreads_metadata(self, isbn: str) -> tuple[str | None, int | None, str | None]:
         """
         Fetch genres, page count, and Goodreads link from Goodreads.
 

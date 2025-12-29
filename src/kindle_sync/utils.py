@@ -1,36 +1,31 @@
 """Utility functions for Kindle Highlights Sync."""
 
+import hashlib
 import re
 import time
 from collections.abc import Callable
 from functools import wraps
 
 
-def fletcher16(text: str) -> str:
+def sha(text: str) -> str:
     """
-    Generate Fletcher-16 checksum for text.
+    Generate SHA-256 hash for text.
 
-    Used for generating highlight IDs.
+    Used for generating highlight IDs. Returns first 8 hex characters of SHA-256.
 
     Args:
         text: Input text to hash (will be lowercased)
 
     Returns:
-        4-character hexadecimal string
+        8-character hexadecimal string
 
     Example:
         >>> fletcher16("You do not rise to the level of your goals")
-        "9f2e"
+        "a1b2c3d4"
     """
     data = text.lower().encode("utf-8")
-    sum1 = sum2 = 0
-
-    for byte in data:
-        sum1 = (sum1 + byte) % 255
-        sum2 = (sum2 + sum1) % 255
-
-    checksum = (sum2 << 8) | sum1
-    return f"{checksum:04x}"
+    hash_digest = hashlib.sha256(data).hexdigest()
+    return hash_digest[:8]
 
 
 def slugify(text: str, max_length: int = 50) -> str:

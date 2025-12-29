@@ -140,10 +140,10 @@ All scraping methods wrapped with `@retry` decorator for network resilience.
 ## Important Patterns
 
 ### Highlight ID Generation
-Uses Fletcher-16 checksum of highlight content to generate stable, unique IDs:
+Uses SHA-256 hash of highlight content to generate stable, unique IDs:
 ```python
 def fletcher16(text: str) -> str:
-    # Returns hex string like "a3f2"
+    # Returns first 8 hex characters of SHA-256 like "a1b2c3d4"
 ```
 
 This allows detecting when highlights change between syncs.
