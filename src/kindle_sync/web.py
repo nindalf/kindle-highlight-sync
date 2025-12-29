@@ -5,7 +5,7 @@ from pathlib import Path
 
 from flask import Flask, abort, g, jsonify, render_template, request
 
-from kindle_sync.models import ExportFormat, HighlightColor
+from kindle_sync.models import AmazonRegion, ExportFormat, HighlightColor
 from kindle_sync.services import AuthService, ExportService, SyncService
 from kindle_sync.services.database_service import DatabaseManager
 
@@ -186,6 +186,34 @@ def create_app(db_path: str | None = None) -> Flask:
         """Get authentication and sync status."""
         status = AuthService.check_status(app.config["DB_PATH"])
         return jsonify(status)
+
+    @app.route("/api/auth/login", methods=["POST"])
+    def api_login():
+        """Trigger Amazon login flow."""
+        data = request.get_json() or {}
+        region_str = data.get("region", "global")
+
+        try:
+            region = AmazonRegion(region_str)
+        except ValueError:
+            return jsonify(
+                {
+                    "success": False,
+                    "message": "Invalid region",
+                    "error": f"Region must be one of: {', '.join([r.value for r in AmazonRegion])}",
+                }
+            )
+
+        # Perform login (will open browser window)
+        result = AuthService.login(app.config["DB_PATH"], region, headless=False)
+        return jsonify(
+            {
+                "success": result.success,
+                "message": result.message,
+                "error": result.error,
+                "data": result.data,
+            }
+        )
 
     @app.route("/api/auth/logout", methods=["POST"])
     def api_logout():

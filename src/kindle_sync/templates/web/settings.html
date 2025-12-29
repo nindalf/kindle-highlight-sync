@@ -3,12 +3,12 @@ endblock %} {% block content %}
 <div class="settings-container">
     <h2>Settings</h2>
 
-    <!-- Status Section -->
+    <!-- Account & Status Section -->
     <div class="settings-section">
-        <h3>📊 Status</h3>
-        <div id="status-info" class="status-box">
-            <div class="loading">Loading status...</div>
+        <div id="account-status-panel">
+            <div class="loading">Loading...</div>
         </div>
+        <div id="account-result"></div>
     </div>
 
     <!-- Sync Section -->
@@ -37,39 +37,12 @@ endblock %} {% block content %}
         <div id="sync-result"></div>
     </div>
 
-    <!-- Export Directory Section -->
+    <!-- Sync Images Section -->
     <div class="settings-section">
-        <h3>📁 Export Directory</h3>
+        <h3>🖼️ Sync Images</h3>
         <p class="section-description">
-            Configure the default directory where your exports will be saved.
-        </p>
-        <div class="export-dir-form">
-            <div class="form-group">
-                <label for="export-directory">Export Directory:</label>
-                <input
-                    type="text"
-                    id="export-directory"
-                    class="form-control"
-                    placeholder="Loading..."
-                />
-            </div>
-            <button
-                id="save-dir-btn"
-                class="btn btn-primary"
-                onclick="saveExportDirectory()"
-            >
-                Save Directory
-            </button>
-        </div>
-        <div id="export-dir-result"></div>
-    </div>
-
-    <!-- Images Directory Section -->
-    <div class="settings-section">
-        <h3>🖼️ Images Directory</h3>
-        <p class="section-description">
-            Configure the default directory where book cover images will be
-            saved.
+            Download book cover images. Configure the directory where images
+            will be saved and select the image quality.
         </p>
         <div class="export-dir-form">
             <div class="form-group">
@@ -90,23 +63,14 @@ endblock %} {% block content %}
             </button>
         </div>
         <div id="images-dir-result"></div>
-    </div>
-
-    <!-- Sync Images Section -->
-    <div class="settings-section">
-        <h3>🖼️ Sync Images</h3>
-        <p class="section-description">
-            Download book cover images to your configured images directory.
-            Images are only downloaded if they don't already exist.
-        </p>
-        <div class="export-form">
+        <div class="export-form" style="margin-top: 16px">
             <div class="form-group">
                 <label for="image-size">Image Size:</label>
                 <select id="image-size" class="form-control">
                     <option value="SMALL">Small</option>
-                    <option value="MEDIUM" selected>Medium</option>
+                    <option value="MEDIUM">Medium</option>
                     <option value="LARGE">Large</option>
-                    <option value="ORIGINAL">Original</option>
+                    <option value="ORIGINAL" selected>Original</option>
                 </select>
             </div>
             <button
@@ -124,10 +88,29 @@ endblock %} {% block content %}
     <div class="settings-section">
         <h3>📤 Export Highlights</h3>
         <p class="section-description">
-            Export your highlights to various formats. Files will be saved to
-            your configured export directory.
+            Export your highlights to various formats. Configure the directory
+            where files will be saved and select your preferred format.
         </p>
-        <div class="export-form">
+        <div class="export-dir-form">
+            <div class="form-group">
+                <label for="export-directory">Export Directory:</label>
+                <input
+                    type="text"
+                    id="export-directory"
+                    class="form-control"
+                    placeholder="Loading..."
+                />
+            </div>
+            <button
+                id="save-dir-btn"
+                class="btn btn-primary"
+                onclick="saveExportDirectory()"
+            >
+                Save Directory
+            </button>
+        </div>
+        <div id="export-dir-result"></div>
+        <div class="export-form" style="margin-top: 16px">
             <div class="form-group">
                 <label for="export-format">Format:</label>
                 <select id="export-format" class="form-control">
@@ -140,7 +123,7 @@ endblock %} {% block content %}
                 <label for="export-template">Template:</label>
                 <select id="export-template" class="form-control">
                     <option value="simple">Simple</option>
-                    <option value="astro">Astro</option>
+                    <option value="astro" selected>Astro</option>
                 </select>
             </div>
             <button
@@ -152,19 +135,6 @@ endblock %} {% block content %}
             </button>
         </div>
         <div id="export-result"></div>
-    </div>
-
-    <!-- Account Section -->
-    <div class="settings-section">
-        <h3>👤 Account</h3>
-        <p class="section-description">
-            Manage your Amazon account connection. Logging out will clear stored
-            session data.
-        </p>
-        <button id="logout-btn" class="btn btn-danger" onclick="logout()">
-            Logout
-        </button>
-        <div id="logout-result"></div>
     </div>
 </div>
 
@@ -332,7 +302,7 @@ endblock %} {% block content %}
 <script>
     // Load status and export directory on page load
     document.addEventListener("DOMContentLoaded", () => {
-        loadStatus();
+        loadAccountStatusPanel();
         loadExportDirectory();
         loadImagesDirectory();
     });
@@ -469,44 +439,91 @@ endblock %} {% block content %}
         }
     }
 
-    async function loadStatus() {
+    async function loadAccountStatusPanel() {
         try {
             const response = await fetch("/api/status");
             const data = await response.json();
 
-            const statusHtml = `
-                <div class="status-item">
-                    <span class="status-label">Authentication Status:</span>
-                    <span class="status-badge ${data.authenticated ? "authenticated" : "not-authenticated"}">
-                        ${data.authenticated ? "✓ Authenticated" : "✗ Not Authenticated"}
-                    </span>
-                </div>
-                ${
-                    data.session_age
-                        ? `
-                <div class="status-item">
-                    <span class="status-label">Session Age:</span>
-                    <span class="status-value">${data.session_age}</span>
-                </div>
-                `
-                        : ""
-                }
-                ${
-                    data.last_sync
-                        ? `
-                <div class="status-item">
-                    <span class="status-label">Last Sync:</span>
-                    <span class="status-value">${new Date(data.last_sync).toLocaleString()}</span>
-                </div>
-                `
-                        : ""
-                }
-            `;
+            const panelDiv = document.getElementById("account-status-panel");
 
-            document.getElementById("status-info").innerHTML = statusHtml;
+            if (data.authenticated) {
+                // Show status panel when authenticated
+                const statusHtml = `
+                    <h3>📊 Status</h3>
+                    <div class="status-box">
+                        <div class="status-item">
+                            <span class="status-label">Authentication Status:</span>
+                            <span class="status-badge authenticated">✓ Authenticated</span>
+                        </div>
+                        ${
+                            data.session_age
+                                ? `
+                        <div class="status-item">
+                            <span class="status-label">Session Age:</span>
+                            <span class="status-value">${data.session_age}</span>
+                        </div>
+                        `
+                                : ""
+                        }
+                        ${
+                            data.last_sync
+                                ? `
+                        <div class="status-item">
+                            <span class="status-label">Last Sync:</span>
+                            <span class="status-value">${new Date(data.last_sync).toLocaleString()}</span>
+                        </div>
+                        `
+                                : ""
+                        }
+                        <div class="status-item">
+                            <span class="status-label">Total Books:</span>
+                            <span class="status-value">${data.total_books}</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="status-label">Total Highlights:</span>
+                            <span class="status-value">${data.total_highlights}</span>
+                        </div>
+                    </div>
+                    <div style="margin-top: 16px;">
+                        <button class="btn btn-danger" onclick="logout()">
+                            Logout
+                        </button>
+                    </div>
+                `;
+                panelDiv.innerHTML = statusHtml;
+            } else {
+                // Show login panel when not authenticated
+                const loginHtml = `
+                    <h3>👤 Account</h3>
+                    <p class="section-description">
+                        Connect to your Amazon account to sync your Kindle highlights.
+                        A browser window will open for you to log in securely.
+                    </p>
+                    <div class="export-form">
+                        <div class="form-group">
+                            <label for="login-region">Amazon Region:</label>
+                            <select id="login-region" class="form-control">
+                                <option value="global">Global (amazon.com)</option>
+                                <option value="uk">United Kingdom</option>
+                                <option value="germany">Germany</option>
+                                <option value="japan">Japan</option>
+                                <option value="india">India</option>
+                                <option value="spain">Spain</option>
+                                <option value="italy">Italy</option>
+                                <option value="france">France</option>
+                            </select>
+                        </div>
+                        <button id="login-btn" class="btn btn-primary" onclick="login()">
+                            Login to Amazon
+                        </button>
+                    </div>
+                `;
+                panelDiv.innerHTML = loginHtml;
+            }
         } catch (error) {
-            document.getElementById("status-info").innerHTML = `
-                <div class="alert alert-error">Failed to load status: ${error.message}</div>
+            document.getElementById("account-status-panel").innerHTML = `
+                <h3>❌ Error</h3>
+                <div class="alert alert-error">Failed to load account status: ${error.message}</div>
             `;
         }
     }
@@ -562,7 +579,7 @@ endblock %} {% block content %}
                 `;
 
                 // Reload status
-                loadStatus();
+                loadAccountStatusPanel();
             } else {
                 resultDiv.innerHTML = `
                     <div class="alert alert-error">${data.message || data.error}</div>
@@ -692,6 +709,51 @@ endblock %} {% block content %}
         }
     }
 
+    async function login() {
+        const loginBtn = document.getElementById("login-btn");
+        const regionSelect = document.getElementById("login-region");
+        const resultDiv = document.getElementById("account-result");
+
+        const region = regionSelect.value;
+
+        loginBtn.disabled = true;
+        resultDiv.innerHTML =
+            '<div class="alert alert-info">Opening browser for login... Please complete the login in the browser window that opens.</div>';
+
+        try {
+            const response = await fetch("/api/auth/login", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ region: region }),
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                resultDiv.innerHTML = `
+                    <div class="alert alert-success">${data.message}</div>
+                `;
+                // Reload account status panel
+                setTimeout(() => {
+                    loadAccountStatusPanel();
+                    resultDiv.innerHTML = "";
+                }, 2000);
+            } else {
+                resultDiv.innerHTML = `
+                    <div class="alert alert-error">${data.message || data.error}</div>
+                `;
+            }
+        } catch (error) {
+            resultDiv.innerHTML = `
+                <div class="alert alert-error">Login failed: ${error.message}</div>
+            `;
+        } finally {
+            loginBtn.disabled = false;
+        }
+    }
+
     async function logout() {
         if (
             !confirm(
@@ -702,7 +764,7 @@ endblock %} {% block content %}
         }
 
         const logoutBtn = document.getElementById("logout-btn");
-        const resultDiv = document.getElementById("logout-result");
+        const resultDiv = document.getElementById("account-result");
 
         logoutBtn.disabled = true;
         resultDiv.innerHTML =
@@ -719,8 +781,10 @@ endblock %} {% block content %}
                 resultDiv.innerHTML = `
                     <div class="alert alert-success">${data.message}</div>
                 `;
-                // Reload status
-                setTimeout(loadStatus, 1000);
+                // Reload account status panel
+                setTimeout(() => {
+                    loadAccountStatusPanel();
+                }, 1000);
             } else {
                 resultDiv.innerHTML = `
                     <div class="alert alert-error">${data.message || data.error}</div>
