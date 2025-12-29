@@ -26,6 +26,9 @@ genres: [{% for genre in book.genres %}"{{ genre }}"{% if not loop.last %}, {% e
 {% if book.isbn %}
 isbn: "{{ book.isbn }}"
 {% endif %}
+{% if book.page_count %}
+page_count: {{ book.page_count }}
+{% endif %}
 {% if book.classification %}
 classification: "{{ book.classification }}"
 {% endif %}

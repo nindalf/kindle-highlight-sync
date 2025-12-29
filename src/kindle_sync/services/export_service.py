@@ -241,6 +241,7 @@ class ExportService:
                 "genres": [g.strip() for g in book.genres.split(",")] if book.genres else [],
                 "shop_link": book.shop_link,
                 "isbn": book.isbn,
+                "page_count": book.page_count,
                 "classification": book.classification,
                 "goodreads_link": book.goodreads_link,
                 "price_gbp": book.price_gbp,
