@@ -82,11 +82,15 @@ class SyncService:
                 # Fetch Goodreads data if we have an ISBN
                 if book.isbn:
                     try:
-                        genres, page_count = scraper.scrape_goodreads_metadata(book.isbn)
+                        genres, page_count, goodreads_link = scraper.scrape_goodreads_metadata(
+                            book.isbn
+                        )
                         if genres:
                             book.genres = genres
                         if page_count:
                             book.page_count = page_count
+                        if goodreads_link:
+                            book.goodreads_link = goodreads_link
                     except Exception as e:
                         print(f"Failed to fetch Goodreads data for {book.title}: {e}")
 

@@ -261,7 +261,7 @@ class KindleScraper:
             asin=asin,
             title=title,
             author=author,
-            url=f"https://www.amazon.com/dp/{asin}",
+            url=f"https://{self.region_config.hostname}/dp/{asin}",
             image_url=image_url,
             last_annotated_date=last_annotated_date,
             isbn=isbn,
@@ -354,15 +354,15 @@ class KindleScraper:
         return None
 
     @retry(max_attempts=3)
-    def scrape_goodreads_metadata(self, isbn: str) -> tuple[str | None, int | None]:
+    def scrape_goodreads_metadata(self, isbn: str) -> tuple[str | None, int | None, str | None]:
         """
-        Fetch genres and page count from Goodreads.
+        Fetch genres, page count, and Goodreads link from Goodreads.
 
         Args:
             isbn: The ISBN of the book
 
         Returns:
-            Tuple of (genres_csv, page_count)
+            Tuple of (genres_csv, page_count, goodreads_link)
         """
         try:
             clean_isbn = isbn.replace("-", "").replace(" ", "")
@@ -370,6 +370,9 @@ class KindleScraper:
 
             response = self.session.get(url, timeout=Config.REQUEST_TIMEOUT, allow_redirects=True)
             response.raise_for_status()
+
+            # Get the final URL after redirect (the actual book page)
+            goodreads_link = response.url
 
             soup = BeautifulSoup(response.text, "html.parser")
 
@@ -400,11 +403,11 @@ class KindleScraper:
                 if match:
                     page_count = int(match.group(1))
 
-            return genres_csv, page_count
+            return genres_csv, page_count, goodreads_link
 
         except Exception as e:
             print(f"Warning: Failed to fetch Goodreads data for ISBN {isbn}: {e}")
-            return None, None
+            return None, None, None
 
     def _parse_date(self, date_text: str) -> datetime | None:
         """Parse date string based on region."""
