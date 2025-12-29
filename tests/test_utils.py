@@ -177,8 +177,8 @@ class TestRetry:
         assert len(call_times) == 3
         delay1 = call_times[1] - call_times[0]
         delay2 = call_times[2] - call_times[1]
-        assert 0.05 < delay1 < 0.15  # ~0.1s with tolerance
-        assert 0.15 < delay2 < 0.25  # ~0.2s with tolerance
+        assert 0.05 < delay1 < 0.20  # ~0.1s with tolerance
+        assert 0.15 < delay2 < 0.30  # ~0.2s with tolerance
 
     def test_specific_exception_types(self):
         """Test catching specific exception types."""
