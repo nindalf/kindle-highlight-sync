@@ -1,0 +1,354 @@
+{% extends "base.html" %} {% block title %}Add Physical Book - Kindle
+Highlights{% endblock %} {% block content %}
+<div class="add-book-container">
+    <a href="/" class="back-link">← Back to Books</a>
+    <h2>Add Physical Book</h2>
+    <p class="section-description">
+        Add a physical book to your collection by entering its ASIN (Amazon
+        Standard Identification Number). Optionally, you can also provide an
+        ISBN for more accurate metadata from Goodreads.
+    </p>
+
+    <!-- Input Form -->
+    <div class="settings-section">
+        <h3>📚 Book Details</h3>
+        <div class="form-group">
+            <label for="asin-input"
+                >ASIN (Required)
+                <span class="help-text"
+                    >- Find this on the Amazon product page</span
+                ></label
+            >
+            <input
+                type="text"
+                id="asin-input"
+                class="form-control"
+                placeholder="e.g., B08KGRK7RH"
+            />
+        </div>
+        <div class="form-group">
+            <label for="isbn-input"
+                >ISBN (Optional)
+                <span class="help-text"
+                    >- For better Goodreads metadata</span
+                ></label
+            >
+            <input
+                type="text"
+                id="isbn-input"
+                class="form-control"
+                placeholder="e.g., 9780134685991"
+            />
+        </div>
+        <button id="add-btn" class="btn btn-primary" onclick="addPhysicalBook()">
+            Add Book
+        </button>
+        <div id="add-result"></div>
+    </div>
+
+    <!-- Preview Section (hidden until book is added) -->
+    <div id="preview-section" class="settings-section" style="display: none">
+        <h3>✅ Book Added Successfully</h3>
+        <div class="book-preview">
+            <div class="book-preview-image">
+                <img id="preview-image" src="" alt="Book cover" />
+            </div>
+            <div class="book-preview-details">
+                <h4 id="preview-title">Book Title</h4>
+                <p class="preview-author" id="preview-author">Author Name</p>
+                <div class="preview-metadata">
+                    <div class="metadata-item">
+                        <span class="metadata-label">ASIN:</span>
+                        <span id="preview-asin">-</span>
+                    </div>
+                    <div class="metadata-item">
+                        <span class="metadata-label">ISBN:</span>
+                        <span id="preview-isbn">-</span>
+                    </div>
+                    <div class="metadata-item">
+                        <span class="metadata-label">Pages:</span>
+                        <span id="preview-pages">-</span>
+                    </div>
+                    <div class="metadata-item">
+                        <span class="metadata-label">Genres:</span>
+                        <span id="preview-genres">-</span>
+                    </div>
+                    <div class="metadata-item" id="goodreads-link-item" style="display: none">
+                        <span class="metadata-label">Goodreads:</span>
+                        <a id="preview-goodreads" href="#" target="_blank">View on Goodreads</a>
+                    </div>
+                </div>
+                <div class="preview-actions">
+                    <a id="view-book-btn" href="#" class="btn btn-primary">View Book</a>
+                    <button class="btn btn-secondary" onclick="addAnotherBook()">Add Another Book</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .add-book-container {
+        max-width: 800px;
+    }
+
+    .add-book-container h2 {
+        font-size: 32px;
+        margin-bottom: 12px;
+        color: #232f3e;
+    }
+
+    .section-description {
+        color: #666;
+        font-size: 14px;
+        margin-bottom: 30px;
+        line-height: 1.6;
+    }
+
+    .settings-section {
+        background: #fff;
+        border-radius: 8px;
+        padding: 24px;
+        margin-bottom: 24px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .settings-section h3 {
+        font-size: 20px;
+        margin-bottom: 20px;
+        color: #232f3e;
+    }
+
+    .form-group {
+        margin-bottom: 20px;
+    }
+
+    .form-group label {
+        display: block;
+        font-size: 14px;
+        font-weight: 600;
+        margin-bottom: 8px;
+        color: #555;
+    }
+
+    .help-text {
+        font-weight: 400;
+        color: #999;
+        font-size: 12px;
+    }
+
+    .form-control {
+        width: 100%;
+        padding: 12px;
+        font-size: 14px;
+        border: 2px solid #e0e0e0;
+        border-radius: 6px;
+        font-family: inherit;
+        background: white;
+    }
+
+    .form-control:focus {
+        outline: none;
+        border-color: #0066c0;
+    }
+
+    .book-preview {
+        display: flex;
+        gap: 24px;
+        margin-top: 16px;
+    }
+
+    .book-preview-image {
+        flex-shrink: 0;
+    }
+
+    .book-preview-image img {
+        width: 200px;
+        border-radius: 6px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    }
+
+    .book-preview-details {
+        flex: 1;
+    }
+
+    .book-preview-details h4 {
+        font-size: 24px;
+        margin-bottom: 8px;
+        color: #232f3e;
+    }
+
+    .preview-author {
+        font-size: 16px;
+        color: #666;
+        margin-bottom: 20px;
+    }
+
+    .preview-metadata {
+        background: #f9f9f9;
+        border-radius: 6px;
+        padding: 16px;
+        margin-bottom: 20px;
+    }
+
+    .metadata-item {
+        display: flex;
+        padding: 8px 0;
+        border-bottom: 1px solid #e0e0e0;
+    }
+
+    .metadata-item:last-child {
+        border-bottom: none;
+    }
+
+    .metadata-label {
+        font-weight: 600;
+        color: #555;
+        min-width: 100px;
+    }
+
+    .metadata-item span:not(.metadata-label),
+    .metadata-item a {
+        color: #333;
+    }
+
+    .metadata-item a {
+        color: #0066c0;
+        text-decoration: none;
+    }
+
+    .metadata-item a:hover {
+        text-decoration: underline;
+    }
+
+    .preview-actions {
+        display: flex;
+        gap: 12px;
+    }
+</style>
+
+<script>
+    async function addPhysicalBook() {
+        const addBtn = document.getElementById("add-btn");
+        const asinInput = document.getElementById("asin-input");
+        const isbnInput = document.getElementById("isbn-input");
+        const resultDiv = document.getElementById("add-result");
+        const previewSection = document.getElementById("preview-section");
+
+        const asin = asinInput.value.trim();
+        const isbn = isbnInput.value.trim();
+
+        if (!asin) {
+            resultDiv.innerHTML = `
+                <div class="alert alert-error">Please enter an ASIN</div>
+            `;
+            return;
+        }
+
+        addBtn.disabled = true;
+        resultDiv.innerHTML =
+            '<div class="alert alert-info">Fetching book metadata... This may take a few seconds.</div>';
+        previewSection.style.display = "none";
+
+        try {
+            const response = await fetch("/api/physical-book/preview", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ asin, isbn: isbn || null }),
+            });
+
+            const data = await response.json();
+
+            if (data.success && data.data) {
+                const book = data.data;
+
+                // Show success message
+                resultDiv.innerHTML = `
+                    <div class="alert alert-success">${data.message}</div>
+                `;
+
+                // Populate preview section
+                document.getElementById("preview-title").textContent =
+                    book.title || "Unknown Title";
+                document.getElementById("preview-author").textContent =
+                    book.author || "Unknown Author";
+                document.getElementById("preview-asin").textContent =
+                    book.asin || "-";
+                document.getElementById("preview-isbn").textContent =
+                    book.isbn || "-";
+                document.getElementById("preview-pages").textContent = book
+                    .page_count
+                    ? `${book.page_count} pages`
+                    : "-";
+                document.getElementById("preview-genres").textContent =
+                    book.genres || "-";
+
+                // Set image
+                if (book.image_url) {
+                    document.getElementById("preview-image").src =
+                        book.image_url;
+                } else {
+                    document.getElementById("preview-image").src =
+                        "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='300'%3E%3Crect fill='%23ddd' width='200' height='300'/%3E%3Ctext fill='%23999' x='50%25' y='50%25' text-anchor='middle' dy='.3em'%3ENo Image%3C/text%3E%3C/svg%3E";
+                }
+
+                // Set Goodreads link
+                if (book.goodreads_link) {
+                    document.getElementById("preview-goodreads").href =
+                        book.goodreads_link;
+                    document.getElementById("goodreads-link-item").style.display = "flex";
+                } else {
+                    document.getElementById("goodreads-link-item").style.display = "none";
+                }
+
+                // Set view book button
+                document.getElementById("view-book-btn").href = `/book/${book.asin}`;
+
+                // Show preview section
+                previewSection.style.display = "block";
+
+                // Clear input fields
+                asinInput.value = "";
+                isbnInput.value = "";
+            } else {
+                resultDiv.innerHTML = `
+                    <div class="alert alert-error">${data.message || data.error || "Failed to add book"}</div>
+                `;
+            }
+        } catch (error) {
+            resultDiv.innerHTML = `
+                <div class="alert alert-error">Failed to add book: ${error.message}</div>
+            `;
+        } finally {
+            addBtn.disabled = false;
+        }
+    }
+
+    function addAnotherBook() {
+        document.getElementById("preview-section").style.display = "none";
+        document.getElementById("add-result").innerHTML = "";
+        document.getElementById("asin-input").focus();
+    }
+
+    // Allow Enter key to submit
+    document.addEventListener("DOMContentLoaded", () => {
+        const asinInput = document.getElementById("asin-input");
+        const isbnInput = document.getElementById("isbn-input");
+
+        asinInput.addEventListener("keypress", (e) => {
+            if (e.key === "Enter") {
+                addPhysicalBook();
+            }
+        });
+
+        isbnInput.addEventListener("keypress", (e) => {
+            if (e.key === "Enter") {
+                addPhysicalBook();
+            }
+        });
+    });
+</script>
+
+{% endblock %}

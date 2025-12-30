@@ -186,6 +186,11 @@ def create_app(db_path: str | None = None) -> Flask:
         """Show settings page with sync, export, and logout options."""
         return render_template("settings.html")
 
+    @app.route("/add-physical-book")
+    def add_physical_book_page():
+        """Show page to add a physical book."""
+        return render_template("add_physical_book.html")
+
     @app.route("/images/<filename>")
     def serve_image(filename: str):
         """Serve book cover images from the configured images directory."""
@@ -616,6 +621,54 @@ def create_app(db_path: str | None = None) -> Flask:
                     }
                     for result in results
                 ],
+            }
+        )
+
+    @app.route("/api/physical-book/preview", methods=["POST"])
+    def api_preview_physical_book():
+        """Preview physical book metadata before adding."""
+        data = request.get_json() or {}
+        asin = data.get("asin", "").strip()
+        isbn = data.get("isbn", "").strip() or None
+
+        if not asin:
+            return jsonify(
+                {
+                    "success": False,
+                    "message": "ASIN is required",
+                    "error": "Missing asin parameter",
+                }
+            ), 400
+
+        # Use sync service to scrape the book
+        result = SyncService.add_physical_book(app.config["DB_PATH"], asin, isbn)
+
+        if not result.success or not result.book:
+            return jsonify(
+                {
+                    "success": False,
+                    "message": result.message,
+                    "error": result.error,
+                }
+            ), 400
+
+        # Return book data for preview (already added to database)
+        book = result.book
+        return jsonify(
+            {
+                "success": True,
+                "message": "Physical book added successfully",
+                "data": {
+                    "asin": book.asin,
+                    "title": book.title,
+                    "author": book.author,
+                    "url": book.url,
+                    "image_url": book.image_url,
+                    "isbn": book.isbn,
+                    "genres": book.genres,
+                    "page_count": book.page_count,
+                    "goodreads_link": book.goodreads_link,
+                },
             }
         )
 

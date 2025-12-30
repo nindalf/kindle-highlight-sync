@@ -254,7 +254,9 @@ class KindleScraper:
                 last_annotated_date = self._parse_date(date_text)
 
         isbn = self._scrape_isbn(asin)
-        (genres, page_count, goodreads_link) = self._scrape_goodreads_metadata(isbn)
+        genres, page_count, goodreads_link, _ = self._scrape_goodreads_metadata(
+            isbn, include_image=False
+        )
 
         return Book(
             asin=asin,
@@ -316,9 +318,10 @@ class KindleScraper:
     def _scrape_isbn(self, asin: str) -> str | None:
         """Scrape ISBN from Amazon product page.
 
-        Uses two fallback methods:
+        Uses three fallback methods:
         1. Extract from popover data attribute
         2. Extract from ISBN feature div
+        3. Extract from product details bullets
         """
         # Construct product page URL based on region
         product_url = f"https://{self.region_config.hostname}/gp/product/{asin}"
@@ -331,7 +334,17 @@ class KindleScraper:
             return None
 
         soup = BeautifulSoup(response.text, "html.parser")
+        return self._extract_isbn_from_soup(soup)
 
+    def _extract_isbn_from_soup(self, soup: BeautifulSoup) -> str | None:
+        """Extract ISBN from BeautifulSoup parsed product page.
+
+        Args:
+            soup: BeautifulSoup object of Amazon product page
+
+        Returns:
+            ISBN string or None if not found
+        """
         # Method 1: Try to extract from popover data
         popover_element = soup.select_one(
             "#rich_product_information ol.a-carousel span[data-action=a-popover]"
@@ -339,7 +352,6 @@ class KindleScraper:
         if popover_element:
             popover_data = popover_element.get("data-a-popover")
             if popover_data:
-                # Look for ISBN in the popover data
                 isbn_match = re.search(r"\bISBN\s+(\w+)", str(popover_data))
                 if isbn_match:
                     return isbn_match.group(1)
@@ -353,18 +365,31 @@ class KindleScraper:
             if isbn_text:
                 return isbn_text
 
+        # Method 3: Try to extract from product details
+        details_elements = soup.select("#detailBullets_feature_div li")
+        for elem in details_elements:
+            text = elem.get_text(strip=True)
+            if "ISBN-13" in text or "ISBN-10" in text:
+                isbn_match = re.search(r"ISBN[-\s]*(?:13|10)?[:\s]*(\d[\d\-]+\d)", text)
+                if isbn_match:
+                    return isbn_match.group(1).replace("-", "")
+
         return None
 
     @retry(max_attempts=3)
-    def _scrape_goodreads_metadata(self, isbn: str) -> tuple[str | None, int | None, str | None]:
+    def _scrape_goodreads_metadata(
+        self, isbn: str, include_image: bool = False
+    ) -> tuple[str | None, int | None, str | None, str | None]:
         """
-        Fetch genres, page count, and Goodreads link from Goodreads.
+        Fetch genres, page count, Goodreads link, and optionally cover image from Goodreads.
 
         Args:
             isbn: The ISBN of the book
+            include_image: Whether to extract book cover image URL
 
         Returns:
-            Tuple of (genres_csv, page_count, goodreads_link)
+            Tuple of (genres_csv, page_count, goodreads_link, image_url)
+            If include_image is False, image_url will be None
         """
         try:
             clean_isbn = isbn.replace("-", "").replace(" ", "")
@@ -378,9 +403,7 @@ class KindleScraper:
 
             soup = BeautifulSoup(response.text, "html.parser")
 
-            # Extract genres similar to:
-            # $("span.BookPageMetadataSection__genreButton")
-            #   .map((_, el) => $(el).find("span").first().text().trim())
+            # Extract genres
             genres = []
             seen = set()
             genre_buttons = soup.find_all("span", class_="BookPageMetadataSection__genreButton")
@@ -394,9 +417,7 @@ class KindleScraper:
 
             genres_csv = ",".join(genres) if genres else None
 
-            # Extract page count similar to:
-            # const pagesText = $('[data-testid="pagesFormat"]').text().trim();
-            # const pageCount = parseInt(pagesText.match(/(\d+)\s*pages/)?.[1]);
+            # Extract page count
             page_count = None
             pages_element = soup.find(attrs={"data-testid": "pagesFormat"})
             if pages_element:
@@ -405,11 +426,21 @@ class KindleScraper:
                 if match:
                     page_count = int(match.group(1))
 
-            return genres_csv, page_count, goodreads_link
+            # Extract book cover image URL if requested
+            image_url = None
+            if include_image:
+                image_element = soup.select_one(".BookPage__bookCover img, .BookCover__image img")
+                if image_element:
+                    src = image_element.get("src")
+                    if src and isinstance(src, str):
+                        # Remove size constraints like ._SY475_ or ._SX318_
+                        image_url = re.sub(r"\._S[XY]\d+_", "", src)
+
+            return genres_csv, page_count, goodreads_link, image_url
 
         except Exception as e:
             print(f"Warning: Failed to fetch Goodreads data for ISBN {isbn}: {e}")
-            return None, None, None
+            return None, None, None, None
 
     def _parse_date(self, date_text: str) -> datetime | None:
         """Parse date string based on region."""
@@ -444,3 +475,86 @@ class KindleScraper:
                 continue
 
         return None
+
+    @retry(max_attempts=Config.MAX_RETRIES, delay=Config.RETRY_DELAY, backoff=Config.RETRY_BACKOFF)
+    def scrape_physical_book(self, asin: str, isbn: str | None = None) -> Book:
+        """
+        Scrape physical book metadata from Amazon product page and Goodreads.
+
+        Args:
+            asin: Amazon Standard Identification Number
+            isbn: International Standard Book Number (optional)
+
+        Returns:
+            Book object with scraped metadata
+
+        Raises:
+            ScraperError: If scraping fails
+        """
+        # Construct product page URL based on region
+        product_url = f"https://{self.region_config.hostname}/dp/{asin}"
+
+        try:
+            response = self.session.get(product_url, timeout=Config.REQUEST_TIMEOUT)
+            response.raise_for_status()
+        except requests.RequestException as e:
+            exc = ScraperError(f"Failed to fetch Amazon product page for ASIN {asin}")
+            exc.add_note(f"URL: {product_url}")
+            raise exc from e
+
+        soup = BeautifulSoup(response.text, "html.parser")
+
+        # Extract title
+        title = "Unknown Title"
+        title_element = soup.select_one("#productTitle")
+        if title_element:
+            title = title_element.get_text(strip=True)
+
+        # Extract author
+        author = "Unknown"
+        author_element = soup.select_one(".author .a-link-normal")
+        if not author_element:
+            author_element = soup.select_one("#bylineInfo .author a")
+        if author_element:
+            author = author_element.get_text(strip=True)
+
+        # Extract image URL
+        image_url = None
+        image_element = soup.select_one("#landingImage, #imgBlkFront, #ebooksImgBlkFront")
+        if image_element:
+            src = image_element.get("src") or image_element.get("data-old-hires")
+            if src and isinstance(src, str):
+                # Remove size markers
+                image_url = re.sub(r"\._SY\d+_?(?=\.\w+$)", "", src)
+                image_url = re.sub(r"\._AC_.*?_\.", ".", image_url)
+
+        # Extract or use provided ISBN
+        if not isbn:
+            isbn = self._extract_isbn_from_soup(soup)
+
+        # Get metadata from Goodreads if ISBN available
+        genres = None
+        page_count = None
+        goodreads_link = None
+        goodreads_image_url = None
+        if isbn:
+            genres, page_count, goodreads_link, goodreads_image_url = (
+                self._scrape_goodreads_metadata(isbn, include_image=True)
+            )
+            # Prefer Goodreads image if available and higher quality
+            if goodreads_image_url:
+                image_url = goodreads_image_url
+
+        return Book(
+            asin=asin,
+            title=title,
+            author=author,
+            url=product_url,
+            image_url=image_url,
+            isbn=isbn,
+            genres=genres,
+            page_count=page_count,
+            goodreads_link=goodreads_link,
+            created_at=datetime.now(),
+            updated_at=datetime.now(),
+        )

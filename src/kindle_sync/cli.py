@@ -343,6 +343,37 @@ def sync_images(ctx: click.Context, size: str) -> None:
         raise click.Abort()
 
 
+@main.command(name="add-physical-book")
+@click.argument("asin")
+@click.option("--isbn", help="ISBN for better Goodreads metadata")
+@click.pass_context
+def add_physical_book(ctx: click.Context, asin: str, isbn: str | None) -> None:
+    """Add a physical book by ASIN."""
+    db_path = ctx.obj["db_path"]
+
+    console.print(f"[bold]Adding physical book {asin}...[/bold]\n")
+
+    result = SyncService.add_physical_book(db_path, asin, isbn)
+
+    if result.success and result.book:
+        console.print(f"\n✓ {result.message}!", style="green")
+        console.print(f"\n[bold]{result.book.title}[/bold]")
+        console.print(f"Author: {result.book.author}")
+        console.print(f"ASIN: {result.book.asin}")
+        if result.book.isbn:
+            console.print(f"ISBN: {result.book.isbn}")
+        if result.book.page_count:
+            console.print(f"Pages: {result.book.page_count}")
+        if result.book.genres:
+            console.print(f"Genres: {result.book.genres}")
+        if result.book.goodreads_link:
+            console.print(f"Goodreads: {result.book.goodreads_link}")
+        console.print("\nYou can now add highlights and notes to this book.")
+    else:
+        console.print(f"\n✗ {result.message}: {result.error}", style="red")
+        raise click.Abort()
+
+
 @main.command()
 @click.option("--host", default="127.0.0.1", help="Host to bind to")
 @click.option("--port", default=5000, type=int, help="Port to bind to")

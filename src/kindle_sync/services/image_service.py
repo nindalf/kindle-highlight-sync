@@ -30,6 +30,76 @@ class ImageResult:
 
 class ImageService:
     @staticmethod
+    def sync_book_image(
+        db_path: str, asin: str, size: ImageSize = ImageSize.ORIGINAL
+    ) -> ImageResult:
+        """
+        Download cover image for a specific book.
+
+        Args:
+            db_path: Path to the database
+            asin: Book ASIN
+            size: Desired image size
+
+        Returns:
+            ImageResult with download status
+        """
+        from kindle_sync.services.database_service import DatabaseManager
+
+        db = DatabaseManager(db_path)
+        db.init_schema()
+
+        try:
+            # Get the book
+            book = db.get_book(asin)
+            if not book:
+                return ImageResult(
+                    success=False, message="Book not found", error=f"No book with ASIN {asin}"
+                )
+
+            if not book.image_url:
+                return ImageResult(
+                    success=False,
+                    message="No image URL",
+                    error=f"Book '{book.title}' has no image URL",
+                )
+
+            # Get images directory and prepare download
+            images_path = ImageService._get_images_directory(db)
+            download_info = ImageService._prepare_image_download(
+                book.image_url, book.asin, images_path, size
+            )
+
+            # Skip if file already exists
+            if download_info is None:
+                return ImageResult(
+                    success=True,
+                    message="Image already exists",
+                    images_downloaded=0,
+                    total_bytes=0,
+                )
+
+            image_url, file_path = download_info
+
+            # Download the image
+            try:
+                bytes_downloaded = ImageService._download_image(image_url, file_path)
+                size_str = ImageService._format_bytes(bytes_downloaded)
+                return ImageResult(
+                    success=True,
+                    message=f"Downloaded image ({size_str})",
+                    images_downloaded=1,
+                    total_bytes=bytes_downloaded,
+                )
+            except ImageError as e:
+                return ImageResult(success=False, message="Failed to download image", error=str(e))
+
+        except Exception as e:
+            return ImageResult(success=False, message="Image sync failed", error=str(e))
+        finally:
+            db.close()
+
+    @staticmethod
     def sync_all_images(db_path: str, size: ImageSize = ImageSize.MEDIUM) -> ImageResult:
         from kindle_sync.services.database_service import DatabaseManager
 
@@ -37,14 +107,8 @@ class ImageService:
         db.init_schema()
 
         try:
-            # Get images directory from database or use default
-            images_dir = db.get_images_directory()
-            if not images_dir:
-                images_dir = Config.DEFAULT_IMAGES_DIR
-
-            # Ensure directory exists
-            images_path = Path(images_dir).expanduser()
-            images_path.mkdir(parents=True, exist_ok=True)
+            # Get images directory
+            images_path = ImageService._get_images_directory(db)
 
             # Get all books with image URLs
             books = db.get_all_books()
@@ -59,17 +123,15 @@ class ImageService:
                 if not book.image_url:
                     continue
 
-                # Update URL to request specified resolution
-                image_url = ImageService._update_image_url(book.image_url, size)
-
-                # Generate filename from URL
-                filename = ImageService._get_filename_from_url(image_url, book.asin)
-                file_path = images_path / filename
+                download_info = ImageService._prepare_image_download(
+                    book.image_url, book.asin, images_path, size
+                )
 
                 # Skip if file already exists
-                if file_path.exists():
+                if download_info is None:
                     continue
 
+                image_url, file_path = download_info
                 download_tasks.append((book.title, image_url, file_path))
 
             # Download images in parallel
@@ -112,6 +174,54 @@ class ImageService:
             return ImageResult(success=False, message="Image sync failed", error=str(e))
         finally:
             db.close()
+
+    @staticmethod
+    def _get_images_directory(db) -> Path:
+        """
+        Get and ensure images directory exists.
+
+        Args:
+            db: DatabaseManager instance
+
+        Returns:
+            Path to images directory
+        """
+        images_dir = db.get_images_directory()
+        if not images_dir:
+            images_dir = Config.DEFAULT_IMAGES_DIR
+
+        images_path = Path(images_dir).expanduser()
+        images_path.mkdir(parents=True, exist_ok=True)
+        return images_path
+
+    @staticmethod
+    def _prepare_image_download(
+        book_image_url: str, book_asin: str, images_path: Path, size: ImageSize
+    ) -> tuple[str, Path] | None:
+        """
+        Prepare an image download by generating URL and checking if download is needed.
+
+        Args:
+            book_image_url: Original image URL from book
+            book_asin: Book ASIN
+            images_path: Directory to save images
+            size: Desired image size
+
+        Returns:
+            Tuple of (image_url, file_path) if download is needed, None if file exists
+        """
+        # Update URL to request specified resolution
+        image_url = ImageService._update_image_url(book_image_url, size)
+
+        # Generate filename from URL
+        filename = ImageService._get_filename_from_url(image_url, book_asin)
+        file_path = images_path / filename
+
+        # Skip if file already exists
+        if file_path.exists():
+            return None
+
+        return image_url, file_path
 
     @staticmethod
     def _update_image_url(url: str, size: ImageSize) -> str:

@@ -4,10 +4,20 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
 
-from kindle_sync.models import AmazonRegion
+from kindle_sync.models import AmazonRegion, Book
 from kindle_sync.services.auth_service import AuthManager
 from kindle_sync.services.database_service import DatabaseManager
-from kindle_sync.services.scraper_service import KindleScraper
+from kindle_sync.services.scraper_service import KindleScraper, ScraperError
+
+
+@dataclass
+class AddPhysicalBookResult:
+    """Result of adding a physical book."""
+
+    success: bool
+    message: str
+    book: Book | None = None
+    error: str | None = None
 
 
 @dataclass
@@ -165,3 +175,69 @@ class SyncService:
         except Exception as e:
             db.close()
             return SyncResult(success=False, message="Sync failed", error=str(e))
+
+    @staticmethod
+    def add_physical_book(
+        db_path: str, asin: str, isbn: str | None = None
+    ) -> AddPhysicalBookResult:
+        """
+        Add a physical book by scraping metadata from Amazon and Goodreads.
+
+        Args:
+            db_path: Path to the database
+            asin: Amazon Standard Identification Number
+            isbn: International Standard Book Number (optional)
+
+        Returns:
+            AddPhysicalBookResult with the scraped book data
+        """
+        db = DatabaseManager(db_path)
+        db.init_schema()
+
+        try:
+            region = AmazonRegion(db.get_session("region") or "global")
+            auth = AuthManager(db, region)
+            if not auth.is_authenticated():
+                db.close()
+                return AddPhysicalBookResult(
+                    success=False, message="Not authenticated", error="Please login first"
+                )
+
+            scraper = KindleScraper(auth.get_session(), region)
+
+            # Scrape physical book metadata
+            book = scraper.scrape_physical_book(asin, isbn)
+
+            # Insert book into database
+            db.insert_book(book)
+            db.close()
+
+            # Download book cover image if available
+            if book.image_url:
+                from kindle_sync.models import ImageSize
+                from kindle_sync.services.image_service import ImageService
+
+                # Use ImageService to download the image
+                image_result = ImageService.sync_book_image(
+                    db_path, book.asin, size=ImageSize.ORIGINAL
+                )
+                if not image_result.success:
+                    # Log warning but don't fail the entire operation
+                    print(
+                        f"Warning: Failed to download image for book '{book.title}': {image_result.error}"
+                    )
+
+            return AddPhysicalBookResult(
+                success=True, message="Physical book added successfully", book=book
+            )
+
+        except ScraperError as e:
+            db.close()
+            return AddPhysicalBookResult(
+                success=False, message="Failed to scrape book data", error=str(e)
+            )
+        except Exception as e:
+            db.close()
+            return AddPhysicalBookResult(
+                success=False, message="Failed to add physical book", error=str(e)
+            )
