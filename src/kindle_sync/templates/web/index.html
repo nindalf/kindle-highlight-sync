@@ -28,6 +28,31 @@ block content %}
         {% endif %}
         <div class="book-title">{{ item.book.title }}</div>
         <div class="book-author">by {{ item.book.author }}</div>
+        <div
+            class="book-rating"
+            data-asin="{{ item.book.asin }}"
+            onclick="
+                event.preventDefault();
+                event.stopPropagation();
+            "
+        >
+            <div class="rating-stars">
+                <span class="star">★</span>
+                <span class="star">★</span>
+                <span class="star">★</span>
+                <span class="star">★</span>
+                <span class="star">★</span>
+            </div>
+            <input
+                type="number"
+                class="rating-input-small"
+                min="0"
+                step="0.1"
+                value="{{ item.book.star_rating if item.book.star_rating else '' }}"
+                placeholder="Rate"
+                data-asin="{{ item.book.asin }}"
+            />
+        </div>
         <div class="book-meta">
             <span>{{ item.book.asin }}</span>
             <span class="highlight-count"
@@ -83,5 +108,141 @@ block content %}
     .book-title {
         flex: 1;
     }
+
+    .book-rating {
+        margin: 12px 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .rating-stars {
+        display: flex;
+        gap: 2px;
+    }
+
+    .rating-stars .star {
+        font-size: 18px;
+        color: #ddd;
+        transition: color 0.2s;
+    }
+
+    .rating-stars .star.filled {
+        color: #ffc107;
+    }
+
+    .rating-stars .star.partial {
+        background: linear-gradient(
+            90deg,
+            #ffc107 var(--fill-percent),
+            #ddd var(--fill-percent)
+        );
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+
+    .rating-input-small {
+        width: 60px;
+        padding: 4px 8px;
+        font-size: 14px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        text-align: center;
+        transition: border-color 0.2s;
+    }
+
+    .rating-input-small:focus {
+        outline: none;
+        border-color: #007bff;
+    }
+
+    .rating-input-small::placeholder {
+        color: #999;
+        font-size: 12px;
+    }
 </style>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const ratingInputs = document.querySelectorAll(".rating-input-small");
+
+        function updateStars(container, rating) {
+            const stars = container.querySelectorAll(".star");
+
+            stars.forEach((star, index) => {
+                star.classList.remove("filled", "partial");
+                star.style.removeProperty("--fill-percent");
+
+                if (rating >= index + 1) {
+                    star.classList.add("filled");
+                } else if (rating > index) {
+                    const fillPercent = ((rating - index) * 100).toFixed(1);
+                    star.classList.add("partial");
+                    star.style.setProperty("--fill-percent", `${fillPercent}%`);
+                }
+            });
+        }
+
+        async function saveRating(asin, rating) {
+            if (rating === null || rating === "") {
+                rating = null;
+            } else {
+                rating = parseFloat(rating);
+                if (isNaN(rating) || rating < 0) {
+                    return;
+                }
+                rating = Math.round(rating * 10) / 10;
+            }
+
+            try {
+                const response = await fetch(`/api/books/${asin}/metadata`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ star_rating: rating }),
+                });
+                const result = await response.json();
+                if (!result.success) {
+                    console.error("Failed to save rating");
+                }
+            } catch (error) {
+                console.error("Failed to save rating:", error);
+            }
+        }
+
+        ratingInputs.forEach((input) => {
+            const container = input.closest(".book-rating");
+            const starsContainer = container.querySelector(".rating-stars");
+
+            // Initialize stars
+            if (input.value) {
+                updateStars(starsContainer, parseFloat(input.value));
+            }
+
+            // Update stars as user types
+            input.addEventListener("input", function () {
+                const rating = this.value ? parseFloat(this.value) : 0;
+                updateStars(starsContainer, rating);
+            });
+
+            // Save on change (after user finishes editing)
+            let saveTimeout;
+            input.addEventListener("change", function () {
+                clearTimeout(saveTimeout);
+                const asin = this.dataset.asin;
+                saveTimeout = setTimeout(() => {
+                    saveRating(asin, this.value);
+                }, 500);
+            });
+
+            // Save on Enter key
+            input.addEventListener("keypress", function (e) {
+                if (e.key === "Enter") {
+                    this.blur();
+                }
+            });
+        });
+    });
+</script>
+
 {% endblock %}

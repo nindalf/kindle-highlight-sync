@@ -53,36 +53,75 @@ Highlights{% endblock %} {% block extra_css %}
         font-size: 16px;
         font-weight: 600;
     }
-    .star-container {
+    .rating-input-container {
         display: flex;
-        gap: 5px;
         align-items: center;
+        gap: 12px;
     }
-    .star {
-        font-size: 32px;
+    .star-display {
+        display: flex;
+        gap: 4px;
+    }
+    .star-display .star {
+        font-size: 28px;
         color: #ddd;
-        cursor: pointer;
         transition: color 0.2s;
         user-select: none;
     }
-    .star:hover,
-    .star.hover {
+    .star-display .star.filled {
         color: #ffc107;
     }
-    .star.filled {
-        color: #ffc107;
-    }
-    .star.half-filled {
-        background: linear-gradient(90deg, #ffc107 50%, #ddd 50%);
+    .star-display .star.partial {
+        background: linear-gradient(
+            90deg,
+            #ffc107 var(--fill-percent),
+            #ddd var(--fill-percent)
+        );
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         background-clip: text;
     }
-    .rating-value {
-        margin-left: 10px;
-        font-size: 14px;
+    .rating-input {
+        width: 70px;
+        padding: 8px 12px;
+        font-size: 16px;
+        border: 2px solid #ddd;
+        border-radius: 6px;
+        text-align: center;
+        transition: border-color 0.2s;
+        font-family: inherit;
+    }
+    .rating-input:focus {
+        outline: none;
+        border-color: #007bff;
+    }
+    .rating-input::-webkit-inner-spin-button,
+    .rating-input::-webkit-outer-spin-button {
+        opacity: 1;
+    }
+    .rating-label {
+        font-size: 16px;
         color: #666;
-        min-width: 50px;
+        font-weight: 500;
+    }
+    .clear-rating {
+        background: #f0f0f0;
+        border: none;
+        border-radius: 50%;
+        width: 28px;
+        height: 28px;
+        cursor: pointer;
+        font-size: 16px;
+        color: #666;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
+        padding: 0;
+    }
+    .clear-rating:hover {
+        background: #e0e0e0;
+        color: #333;
     }
     .review-section {
         margin-top: 20px;
@@ -384,15 +423,29 @@ Highlights{% endblock %} {% block extra_css %}
         <h3>My Rating</h3>
         <span class="save-status" id="ratingSaveStatus">✓ Saved</span>
     </div>
-    <div class="star-container">
-        <span class="star" data-rating="1">★</span>
-        <span class="star" data-rating="2">★</span>
-        <span class="star" data-rating="3">★</span>
-        <span class="star" data-rating="4">★</span>
-        <span class="star" data-rating="5">★</span>
-        <span class="rating-value" id="ratingValue"
-            >{{ book.star_rating if book.star_rating else 'Not rated' }}</span
-        >
+    <div class="rating-input-container">
+        <div class="star-display" id="starDisplay">
+            <span class="star">★</span>
+            <span class="star">★</span>
+            <span class="star">★</span>
+            <span class="star">★</span>
+            <span class="star">★</span>
+        </div>
+        <input
+            type="number"
+            id="ratingInput"
+            class="rating-input"
+            min="0"
+            step="0.1"
+            value="{{ book.star_rating if book.star_rating else '' }}"
+            placeholder="0.0"
+        />
+        <span class="rating-label">/ 5</span>
+        {% if book.star_rating %}
+        <button class="clear-rating" id="clearRating" title="Clear rating">
+            ✕
+        </button>
+        {% endif %}
     </div>
 </div>
 
@@ -683,11 +736,11 @@ Highlights{% endblock %} {% block extra_css %}
             for (let [key, value] of formData.entries()) {
                 if (value && value.trim() !== "") {
                     // Parse price fields as floats
-                    if (key === 'price_gbp' || key === 'price_inr') {
+                    if (key === "price_gbp" || key === "price_inr") {
                         // Remove currency symbols and commas
-                        const cleaned = value.replace(/[£₹,\s]/g, '');
+                        const cleaned = value.replace(/[£₹,\s]/g, "");
                         data[key] = parseFloat(cleaned) || null;
-                    } else if (key === 'star_rating') {
+                    } else if (key === "star_rating") {
                         data[key] = parseFloat(value.trim()) || null;
                     } else {
                         data[key] = value.trim();
@@ -720,13 +773,13 @@ Highlights{% endblock %} {% block extra_css %}
             }
         });
 
-    let saveTimeout;
+    let reviewSaveTimeout;
     const reviewTextarea = document.getElementById("reviewTextarea");
     const saveStatus = document.getElementById("saveStatus");
 
     reviewTextarea.addEventListener("input", function () {
-        clearTimeout(saveTimeout);
-        saveTimeout = setTimeout(async () => {
+        clearTimeout(reviewSaveTimeout);
+        reviewSaveTimeout = setTimeout(async () => {
             const review = reviewTextarea.value.trim();
             try {
                 const response = await fetch(
@@ -749,70 +802,100 @@ Highlights{% endblock %} {% block extra_css %}
     });
 
     // Star rating functionality
-    const stars = document.querySelectorAll(".star");
-    const ratingValue = document.getElementById("ratingValue");
+    const ratingInput = document.getElementById("ratingInput");
+    const starDisplay = document.getElementById("starDisplay");
+    const stars = starDisplay.querySelectorAll(".star");
     const ratingSaveStatus = document.getElementById("ratingSaveStatus");
-    let currentRating = {{ book.star_rating if book.star_rating else 0 }};
+    const clearRatingBtn = document.getElementById("clearRating");
 
     function updateStars(rating) {
         stars.forEach((star, index) => {
-            star.classList.remove("filled", "half-filled", "hover");
-            const starValue = index + 1;
-            if (rating >= starValue) {
+            star.classList.remove("filled", "partial");
+            star.style.removeProperty("--fill-percent");
+
+            if (rating >= index + 1) {
+                // Full star
                 star.classList.add("filled");
-            } else if (rating > index && rating < starValue) {
-                star.classList.add("half-filled");
+            } else if (rating > index) {
+                // Partial star
+                const fillPercent = ((rating - index) * 100).toFixed(1);
+                star.classList.add("partial");
+                star.style.setProperty("--fill-percent", `${fillPercent}%`);
             }
         });
     }
 
-    // Initialize stars based on current rating
-    updateStars(currentRating);
-
-    stars.forEach((star) => {
-        star.addEventListener("click", async function () {
-            const rating = parseFloat(this.getAttribute("data-rating"));
-            currentRating = rating;
-            updateStars(rating);
-            ratingValue.textContent = rating.toFixed(1);
-
-            try {
-                const response = await fetch(
-                    "/api/books/{{ book.asin }}/metadata",
-                    {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ star_rating: rating }),
-                    },
-                );
-                const result = await response.json();
-                if (result.success) {
-                    ratingSaveStatus.classList.add("show");
-                    setTimeout(
-                        () => ratingSaveStatus.classList.remove("show"),
-                        2000,
-                    );
-                }
-            } catch (error) {
-                console.error("Failed to save rating:", error);
+    async function saveRating(rating) {
+        if (rating === null || rating === "") {
+            rating = null;
+        } else {
+            rating = parseFloat(rating);
+            if (isNaN(rating) || rating < 0) {
+                return;
             }
-        });
+            rating = Math.round(rating * 10) / 10; // Round to 1 decimal
+        }
 
-        star.addEventListener("mouseenter", function () {
-            const rating = parseFloat(this.getAttribute("data-rating"));
-            stars.forEach((s, index) => {
-                s.classList.remove("hover");
-                if (index < rating) {
-                    s.classList.add("hover");
+        try {
+            const response = await fetch(
+                "/api/books/{{ book.asin }}/metadata",
+                {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ star_rating: rating }),
+                },
+            );
+            const result = await response.json();
+            if (result.success) {
+                ratingSaveStatus.classList.add("show");
+                setTimeout(
+                    () => ratingSaveStatus.classList.remove("show"),
+                    2000,
+                );
+
+                // Update clear button visibility
+                if (rating !== null && !clearRatingBtn) {
+                    location.reload();
+                } else if (rating === null && clearRatingBtn) {
+                    location.reload();
                 }
-            });
-        });
+            }
+        } catch (error) {
+            console.error("Failed to save rating:", error);
+        }
+    }
+
+    // Initialize stars
+    if (ratingInput.value) {
+        updateStars(parseFloat(ratingInput.value));
+    }
+
+    // Update stars and auto-save when input changes
+    let ratingSaveTimeout;
+    ratingInput.addEventListener("input", function () {
+        const rating = this.value ? parseFloat(this.value) : 0;
+        updateStars(rating);
+
+        // Auto-save with debounce
+        clearTimeout(ratingSaveTimeout);
+        ratingSaveTimeout = setTimeout(() => {
+            saveRating(this.value);
+        }, 1500);
     });
 
-    document
-        .querySelector(".star-container")
-        .addEventListener("mouseleave", function () {
-            stars.forEach((star) => star.classList.remove("hover"));
+    ratingInput.addEventListener("keypress", function (e) {
+        if (e.key === "Enter") {
+            this.blur();
+        }
+    });
+
+    // Clear rating button
+    if (clearRatingBtn) {
+        clearRatingBtn.addEventListener("click", async function () {
+            ratingInput.value = "";
+            updateStars(0);
+            await saveRating(null);
         });
+    }
 </script>
 {% endblock %}

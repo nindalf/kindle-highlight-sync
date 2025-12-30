@@ -150,12 +150,9 @@ uv run --extra app python setup.py py2app
 ### Export Options
 - Multiple formats: Markdown, JSON, CSV
 - Customizable Jinja2 templates
-- Four built-in templates:
+- Two built-in templates:
   - **simple**: Minimal, just highlights
-  - **astro**: Metadata in frontmatter, highlights and review in the main body. 
-
-  - **astro**: Astro-compatible with frontmatter
-- Custom templates supported
+  - **astro**: Metadata in frontmatter, highlights and review in the main body.
 
 ### Image Management
 - Download book cover images
@@ -225,12 +222,8 @@ Inspired by [obsidian-kindle-plugin](https://github.com/hadynz/obsidian-kindle-p
 
 ## Future Features
 
-- [x] Migrate prices to floats
-- [x] Show images locally.
-- [x] Use ISBN to fetch genres and page count from Goodreads.
-- [x] Figure out why Dopamine nation and Project Hail Mary aren't being parsed.
-- [x] Figure out why highlights are being misclassified. Like the ones at the end of Circe. Or Circe in the middle of A Little Hatred.
-- [x] Optimise scraping logic. 
-- [x] Redo tests.
-- [ ] Add a pre-commit hook that runs `ruff` and `ty`
+- [x] Improve ways to rate books.
+- [ ] Add books without highlights (Immune, Asterix etc)
+- [ ] Add ratings and reviews to books in my collection.
+- [ ] Add a pre-push hook that runs `ruff` and `ty`
 - [ ] Explore htmx in the frontend.
