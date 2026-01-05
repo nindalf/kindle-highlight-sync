@@ -111,7 +111,7 @@ class TestSyncServiceFullSync:
             ]
             MockScraper.return_value = mock_scraper
 
-            result = SyncService.sync(temp_db_path, full=True)
+            result = SyncService.sync(temp_db_path)
 
             assert result.success is True
             assert result.books_synced == 2
@@ -133,16 +133,14 @@ class TestSyncServiceFullSync:
             mock_scraper.scrape_books.return_value = []
             MockScraper.return_value = mock_scraper
 
-            result = SyncService.sync(temp_db_path, full=True)
+            result = SyncService.sync(temp_db_path)
 
             assert result.success is True
             assert result.message == "No books found"
             assert result.books_synced == 0
 
-    def test_full_sync_with_book_asins(
-        self, temp_db_path, mock_auth_manager, sample_books, sample_highlights_book1
-    ):
-        """Test full sync with specific book ASINs."""
+    def test_full_sync_scraper_error(self, temp_db_path, mock_auth_manager):
+        """Test full sync when scraper encounters an error."""
         with (
             patch("kindle_sync.services.sync_service.AuthManager") as MockAuth,
             patch("kindle_sync.services.sync_service.KindleScraper") as MockScraper,
@@ -150,34 +148,15 @@ class TestSyncServiceFullSync:
             MockAuth.return_value = mock_auth_manager
 
             mock_scraper = Mock()
-            mock_scraper.scrape_books.return_value = sample_books
-            mock_scraper.scrape_highlights.return_value = sample_highlights_book1
+            mock_scraper.scrape_books.side_effect = Exception("Scraper error")
             MockScraper.return_value = mock_scraper
 
-            result = SyncService.sync(temp_db_path, full=True, book_asins=["BOOK1"])
-
-            assert result.success is True
-            assert result.books_synced == 1
-            assert result.book_details[0].asin == "BOOK1"
-
-    def test_full_sync_book_asins_not_found(self, temp_db_path, mock_auth_manager, sample_books):
-        """Test full sync when specified ASINs are not found."""
-        with (
-            patch("kindle_sync.services.sync_service.AuthManager") as MockAuth,
-            patch("kindle_sync.services.sync_service.KindleScraper") as MockScraper,
-        ):
-            MockAuth.return_value = mock_auth_manager
-
-            mock_scraper = Mock()
-            mock_scraper.scrape_books.return_value = sample_books
-            MockScraper.return_value = mock_scraper
-
-            result = SyncService.sync(temp_db_path, full=True, book_asins=["NONEXISTENT"])
+            result = SyncService.sync(temp_db_path)
 
             assert result.success is False
-            assert "None of the specified books found" in result.message
+            assert "Sync failed" in result.message
             assert result.error is not None
-            assert "NONEXISTENT" in result.error
+            assert "Scraper error" in result.error
 
     def test_full_sync_with_progress_callback(
         self, temp_db_path, mock_auth_manager, sample_books, sample_highlights_book1
@@ -199,7 +178,7 @@ class TestSyncServiceFullSync:
             mock_scraper.scrape_highlights.side_effect = [sample_highlights_book1, []]
             MockScraper.return_value = mock_scraper
 
-            result = SyncService.sync(temp_db_path, full=True, progress_callback=progress_callback)
+            result = SyncService.sync(temp_db_path, progress_callback=progress_callback)
 
             assert result.success is True
             assert len(progress_messages) > 0
@@ -207,13 +186,13 @@ class TestSyncServiceFullSync:
             assert "Sync complete" in progress_messages[-1]
 
 
-class TestSyncServiceIncrementalSync:
-    """Tests for incremental sync operations."""
+class TestSyncServiceSingleBook:
+    """Tests for single book sync operations."""
 
-    def test_incremental_sync_success(
+    def test_sync_single_book_success(
         self, temp_db, mock_auth_manager, sample_books, sample_highlights_book1
     ):
-        """Test successful incremental sync."""
+        """Test successful single book sync."""
         # Pre-populate database with books
         for book in sample_books:
             temp_db.insert_book(book)
@@ -225,30 +204,18 @@ class TestSyncServiceIncrementalSync:
             MockAuth.return_value = mock_auth_manager
 
             mock_scraper = Mock()
-            mock_scraper.scrape_highlights.side_effect = [sample_highlights_book1, []]
+            mock_scraper.scrape_single_book.return_value = sample_books[0]
+            mock_scraper.scrape_highlights.return_value = sample_highlights_book1
             MockScraper.return_value = mock_scraper
 
-            result = SyncService.sync(temp_db.db_path, full=False)
+            result = SyncService.sync_single_book(temp_db.db_path, "BOOK1")
 
             assert result.success is True
-            assert result.books_synced == 2
-            assert result.new_highlights == 2
+            assert result.books_synced == 1
+            assert result.book_details[0].asin == "BOOK1"
 
-    def test_incremental_sync_no_books_in_db(self, temp_db_path, mock_auth_manager):
-        """Test incremental sync when no books are in database."""
-        with patch("kindle_sync.services.sync_service.AuthManager") as MockAuth:
-            MockAuth.return_value = mock_auth_manager
-
-            result = SyncService.sync(temp_db_path, full=False)
-
-            assert result.success is True
-            assert result.message == "No books in database"
-            assert result.books_synced == 0
-
-    def test_incremental_sync_with_book_asins(
-        self, temp_db, mock_auth_manager, sample_books, sample_highlights_book1
-    ):
-        """Test incremental sync with specific book ASINs."""
+    def test_sync_single_book_not_found_on_amazon(self, temp_db, mock_auth_manager, sample_books):
+        """Test single book sync when book is not found on Amazon."""
         for book in sample_books:
             temp_db.insert_book(book)
 
@@ -259,27 +226,64 @@ class TestSyncServiceIncrementalSync:
             MockAuth.return_value = mock_auth_manager
 
             mock_scraper = Mock()
+            mock_scraper.scrape_single_book.return_value = None
+            MockScraper.return_value = mock_scraper
+
+            result = SyncService.sync_single_book(temp_db.db_path, "NONEXISTENT")
+
+            assert result.success is False
+            assert "Book not found" in result.message
+
+    def test_sync_single_book_not_in_database(
+        self, temp_db, mock_auth_manager, sample_books, sample_highlights_book1
+    ):
+        """Test single book sync when book is not in database (adds it)."""
+        with (
+            patch("kindle_sync.services.sync_service.AuthManager") as MockAuth,
+            patch("kindle_sync.services.sync_service.KindleScraper") as MockScraper,
+        ):
+            MockAuth.return_value = mock_auth_manager
+
+            mock_scraper = Mock()
+            mock_scraper.scrape_single_book.return_value = sample_books[0]
             mock_scraper.scrape_highlights.return_value = sample_highlights_book1
             MockScraper.return_value = mock_scraper
 
-            result = SyncService.sync(temp_db.db_path, full=False, book_asins=["BOOK1"])
+            result = SyncService.sync_single_book(temp_db.db_path, "BOOK1")
 
             assert result.success is True
             assert result.books_synced == 1
-            assert result.book_details[0].asin == "BOOK1"
+            assert result.new_highlights == 2
 
-    def test_incremental_sync_book_asins_not_found(self, temp_db, mock_auth_manager, sample_books):
-        """Test incremental sync when specified ASINs are not in database."""
+    def test_sync_single_book_with_progress_callback(
+        self, temp_db, mock_auth_manager, sample_books, sample_highlights_book1
+    ):
+        """Test single book sync with progress callback."""
+        progress_messages = []
+
+        def progress_callback(message: str):
+            progress_messages.append(message)
+
         for book in sample_books:
             temp_db.insert_book(book)
 
-        with patch("kindle_sync.services.sync_service.AuthManager") as MockAuth:
+        with (
+            patch("kindle_sync.services.sync_service.AuthManager") as MockAuth,
+            patch("kindle_sync.services.sync_service.KindleScraper") as MockScraper,
+        ):
             MockAuth.return_value = mock_auth_manager
 
-            result = SyncService.sync(temp_db.db_path, full=False, book_asins=["NONEXISTENT"])
+            mock_scraper = Mock()
+            mock_scraper.scrape_single_book.return_value = sample_books[0]
+            mock_scraper.scrape_highlights.return_value = sample_highlights_book1
+            MockScraper.return_value = mock_scraper
 
-            assert result.success is False
-            assert "None of the specified books found in database" in result.message
+            result = SyncService.sync_single_book(
+                temp_db.db_path, "BOOK1", progress_callback=progress_callback
+            )
+
+            assert result.success is True
+            assert len(progress_messages) > 0
 
 
 class TestSyncServiceHighlightUpdates:
@@ -300,11 +304,12 @@ class TestSyncServiceHighlightUpdates:
             MockAuth.return_value = mock_auth_manager
 
             mock_scraper = Mock()
+            mock_scraper.scrape_single_book.return_value = sample_books[0]
             # Return both highlights (one existing, one new)
             mock_scraper.scrape_highlights.return_value = sample_highlights_book1
             MockScraper.return_value = mock_scraper
 
-            result = SyncService.sync(temp_db.db_path, full=False, book_asins=["BOOK1"])
+            result = SyncService.sync_single_book(temp_db.db_path, "BOOK1")
 
             assert result.success is True
             assert result.new_highlights == 1  # Only one new highlight
@@ -327,11 +332,12 @@ class TestSyncServiceHighlightUpdates:
             MockAuth.return_value = mock_auth_manager
 
             mock_scraper = Mock()
+            mock_scraper.scrape_single_book.return_value = sample_books[0]
             # Return only first highlight (second was deleted)
             mock_scraper.scrape_highlights.return_value = [sample_highlights_book1[0]]
             MockScraper.return_value = mock_scraper
 
-            result = SyncService.sync(temp_db.db_path, full=False, book_asins=["BOOK1"])
+            result = SyncService.sync_single_book(temp_db.db_path, "BOOK1")
 
             assert result.success is True
             assert result.deleted_highlights == 1
@@ -354,11 +360,12 @@ class TestSyncServiceHighlightUpdates:
             MockAuth.return_value = mock_auth_manager
 
             mock_scraper = Mock()
+            mock_scraper.scrape_single_book.return_value = sample_books[0]
             # Return same highlights (no new, no deleted)
             mock_scraper.scrape_highlights.return_value = sample_highlights_book1
             MockScraper.return_value = mock_scraper
 
-            result = SyncService.sync(temp_db.db_path, full=False, book_asins=["BOOK1"])
+            result = SyncService.sync_single_book(temp_db.db_path, "BOOK1")
 
             assert result.success is True
             assert result.new_highlights == 0
@@ -380,10 +387,11 @@ class TestSyncServiceErrors:
             MockAuth.return_value = mock_auth_manager
 
             mock_scraper = Mock()
+            mock_scraper.scrape_single_book.return_value = sample_books[0]
             mock_scraper.scrape_highlights.side_effect = Exception("Network error")
             MockScraper.return_value = mock_scraper
 
-            result = SyncService.sync(temp_db.db_path, full=False, book_asins=["BOOK1"])
+            result = SyncService.sync_single_book(temp_db.db_path, "BOOK1")
 
             assert result.success is False
             assert "Sync failed" in result.message
@@ -402,7 +410,7 @@ class TestSyncServiceErrors:
             mock_db.get_session.side_effect = Exception("Database error")
             MockDB.return_value = mock_db
 
-            result = SyncService.sync(temp_db_path, full=False)
+            result = SyncService.sync(temp_db_path)
 
             assert result.success is False
             assert "Sync failed" in result.message
@@ -424,11 +432,12 @@ class TestSyncServiceMetadata:
             MockAuth.return_value = mock_auth_manager
 
             mock_scraper = Mock()
+            mock_scraper.scrape_single_book.return_value = sample_books[0]
             mock_scraper.scrape_highlights.return_value = sample_highlights_book1
             MockScraper.return_value = mock_scraper
 
             before_sync = datetime.now()
-            result = SyncService.sync(temp_db.db_path, full=False, book_asins=["BOOK1"])
+            result = SyncService.sync_single_book(temp_db.db_path, "BOOK1")
             after_sync = datetime.now()
 
             assert result.success is True

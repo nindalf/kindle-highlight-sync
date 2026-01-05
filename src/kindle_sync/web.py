@@ -264,13 +264,73 @@ def create_app(db_path: str | None = None) -> Flask:
 
     @app.route("/api/sync", methods=["POST"])
     def api_sync():
-        """Trigger sync operation."""
-        data = request.get_json() or {}
-        full = data.get("full", False)
-        book_asins = data.get("books")
+        """Trigger full sync operation."""
+        # Perform full sync
+        result = SyncService.sync(app.config["DB_PATH"])
 
-        # Perform sync
-        result = SyncService.sync(app.config["DB_PATH"], full=full, book_asins=book_asins)
+        # Convert book details to dict
+        book_details = [
+            {
+                "asin": detail.asin,
+                "title": detail.title,
+                "author": detail.author,
+                "new_highlights": detail.new_highlights,
+                "deleted_highlights": detail.deleted_highlights,
+                "total_highlights": detail.total_highlights,
+            }
+            for detail in result.book_details
+        ]
+
+        return jsonify(
+            {
+                "success": result.success,
+                "message": result.message,
+                "data": {
+                    "books_synced": result.books_synced,
+                    "new_highlights": result.new_highlights,
+                    "deleted_highlights": result.deleted_highlights,
+                    "books": book_details,
+                },
+                "error": result.error,
+            }
+        )
+
+    @app.route("/api/sync/new-books", methods=["POST"])
+    def api_sync_new_books():
+        """Scan for and sync new books not in the database."""
+        result = SyncService.sync_new_books(app.config["DB_PATH"])
+
+        # Convert book details to dict
+        book_details = [
+            {
+                "asin": detail.asin,
+                "title": detail.title,
+                "author": detail.author,
+                "new_highlights": detail.new_highlights,
+                "deleted_highlights": detail.deleted_highlights,
+                "total_highlights": detail.total_highlights,
+            }
+            for detail in result.book_details
+        ]
+
+        return jsonify(
+            {
+                "success": result.success,
+                "message": result.message,
+                "data": {
+                    "books_synced": result.books_synced,
+                    "new_highlights": result.new_highlights,
+                    "deleted_highlights": result.deleted_highlights,
+                    "books": book_details,
+                },
+                "error": result.error,
+            }
+        )
+
+    @app.route("/api/books/<asin>/sync", methods=["POST"])
+    def api_sync_single_book(asin: str):
+        """Sync a single book by ASIN."""
+        result = SyncService.sync_single_book(app.config["DB_PATH"], asin)
 
         # Convert book details to dict
         book_details = [

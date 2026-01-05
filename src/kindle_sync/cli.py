@@ -117,26 +117,35 @@ def status(ctx: click.Context) -> None:
 
 
 @main.command()
-@click.option("--full", is_flag=True, help="Full sync (re-download everything)")
-@click.option("--books", help="Comma-separated list of ASINs to sync")
+@click.option("--new-books", is_flag=True, help="Scan for and sync new books only")
+@click.option("--full", is_flag=True, help="Full sync (re-sync all books)")
+@click.option("--asin", help="Sync a specific book by ASIN")
 @click.pass_context
-def sync(ctx: click.Context, full: bool, books: str | None) -> None:
-    """Sync books and highlights from Amazon."""
+def sync(ctx: click.Context, new_books: bool, full: bool, asin: str | None) -> None:
+    """Sync books and highlights from Amazon.
+
+    By default, syncs new books only. Use --full to re-sync all books.
+    Use --asin to sync a specific book.
+    """
     db_path = ctx.obj["db_path"]
-
-    console.print("[bold]Starting sync...[/bold]\n")
-
-    # Parse specific books if provided
-    book_asins = None
-    if books:
-        book_asins = [asin.strip() for asin in books.split(",")]
 
     # Progress callback for CLI
     def progress_callback(message: str) -> None:
         console.print(message)
 
-    # Perform sync using service
-    result = SyncService.sync(db_path, full, book_asins, progress_callback)
+    # Determine sync strategy
+    if asin:
+        # Sync single book by ASIN
+        console.print(f"[bold]Syncing book {asin}...[/bold]\n")
+        result = SyncService.sync_single_book(db_path, asin, progress_callback)
+    elif full:
+        # Full sync of all books
+        console.print("[bold]Starting full sync...[/bold]\n")
+        result = SyncService.sync(db_path, progress_callback)
+    else:
+        # Default: sync new books only
+        console.print("[bold]Scanning for new books...[/bold]\n")
+        result = SyncService.sync_new_books(db_path, progress_callback)
 
     if result.success:
         console.print(f"\n✓ {result.message}!", style="green")

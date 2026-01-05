@@ -504,7 +504,7 @@ class TestRetryDecorator:
 class TestGoodreadsIntegration:
     """Tests for Goodreads metadata scraping."""
 
-    def test_scrape_goodreads_metadata_success(self, scraper, mock_session):
+    def test_scrape_goodreads_metadata_success(self, scraper, mock_session, monkeypatch):
         """Test successful Goodreads metadata scraping."""
         html = """
         <html>
@@ -526,7 +526,15 @@ class TestGoodreadsIntegration:
         mock_response.url = "https://www.goodreads.com/book/show/12345"
         mock_response.status_code = 200
         mock_response.raise_for_status = Mock()
-        mock_session.get.return_value = mock_response
+
+        # Mock the Session constructor to return a session with our mock response
+        mock_goodreads_session = Mock()
+        mock_goodreads_session.get.return_value = mock_response
+        mock_goodreads_session.headers = Mock()
+
+        import requests
+
+        monkeypatch.setattr(requests, "Session", lambda: mock_goodreads_session)
 
         genres, page_count, link, image_url = scraper._scrape_goodreads_metadata("9780735211292")
 
@@ -535,7 +543,7 @@ class TestGoodreadsIntegration:
         assert link == "https://www.goodreads.com/book/show/12345"
         assert image_url is None  # include_image defaults to False
 
-    def test_scrape_goodreads_metadata_no_genres(self, scraper, mock_session):
+    def test_scrape_goodreads_metadata_no_genres(self, scraper, mock_session, monkeypatch):
         """Test Goodreads scraping with no genres found."""
         html = """
         <html>
@@ -548,7 +556,14 @@ class TestGoodreadsIntegration:
         mock_response.url = "https://www.goodreads.com/book/show/12345"
         mock_response.status_code = 200
         mock_response.raise_for_status = Mock()
-        mock_session.get.return_value = mock_response
+
+        mock_goodreads_session = Mock()
+        mock_goodreads_session.get.return_value = mock_response
+        mock_goodreads_session.headers = Mock()
+
+        import requests
+
+        monkeypatch.setattr(requests, "Session", lambda: mock_goodreads_session)
 
         genres, page_count, link, image_url = scraper._scrape_goodreads_metadata("1234567890")
 
@@ -557,7 +572,7 @@ class TestGoodreadsIntegration:
         assert link == "https://www.goodreads.com/book/show/12345"
         assert image_url is None
 
-    def test_scrape_goodreads_metadata_no_page_count(self, scraper, mock_session):
+    def test_scrape_goodreads_metadata_no_page_count(self, scraper, mock_session, monkeypatch):
         """Test Goodreads scraping with no page count found."""
         html = """
         <html>
@@ -572,7 +587,14 @@ class TestGoodreadsIntegration:
         mock_response.url = "https://www.goodreads.com/book/show/12345"
         mock_response.status_code = 200
         mock_response.raise_for_status = Mock()
-        mock_session.get.return_value = mock_response
+
+        mock_goodreads_session = Mock()
+        mock_goodreads_session.get.return_value = mock_response
+        mock_goodreads_session.headers = Mock()
+
+        import requests
+
+        monkeypatch.setattr(requests, "Session", lambda: mock_goodreads_session)
 
         genres, page_count, link, image_url = scraper._scrape_goodreads_metadata("1234567890")
 
@@ -587,7 +609,13 @@ class TestGoodreadsIntegration:
 
         monkeypatch.setattr(time, "sleep", lambda x: None)
 
-        mock_session.get.side_effect = requests.RequestException("Network error")
+        mock_goodreads_session = Mock()
+        mock_goodreads_session.get.side_effect = requests.RequestException("Network error")
+        mock_goodreads_session.headers = Mock()
+
+        import requests as requests_module
+
+        monkeypatch.setattr(requests_module, "Session", lambda: mock_goodreads_session)
 
         # Should return None values on error (prints warning but doesn't raise)
         genres, page_count, link, image_url = scraper._scrape_goodreads_metadata("1234567890")
@@ -597,7 +625,7 @@ class TestGoodreadsIntegration:
         assert link is None
         assert image_url is None
 
-    def test_scrape_goodreads_metadata_filters_audiobook(self, scraper, mock_session):
+    def test_scrape_goodreads_metadata_filters_audiobook(self, scraper, mock_session, monkeypatch):
         """Test that Audiobook genre is filtered out."""
         html = """
         <html>
@@ -618,7 +646,14 @@ class TestGoodreadsIntegration:
         mock_response.url = "https://www.goodreads.com/book/show/12345"
         mock_response.status_code = 200
         mock_response.raise_for_status = Mock()
-        mock_session.get.return_value = mock_response
+
+        mock_goodreads_session = Mock()
+        mock_goodreads_session.get.return_value = mock_response
+        mock_goodreads_session.headers = Mock()
+
+        import requests
+
+        monkeypatch.setattr(requests, "Session", lambda: mock_goodreads_session)
 
         genres, page_count, link, image_url = scraper._scrape_goodreads_metadata("1234567890")
 
@@ -626,7 +661,7 @@ class TestGoodreadsIntegration:
         assert "Audiobook" not in genres
         assert image_url is None
 
-    def test_scrape_goodreads_metadata_removes_duplicates(self, scraper, mock_session):
+    def test_scrape_goodreads_metadata_removes_duplicates(self, scraper, mock_session, monkeypatch):
         """Test that duplicate genres are removed."""
         html = """
         <html>
@@ -647,7 +682,14 @@ class TestGoodreadsIntegration:
         mock_response.url = "https://www.goodreads.com/book/show/12345"
         mock_response.status_code = 200
         mock_response.raise_for_status = Mock()
-        mock_session.get.return_value = mock_response
+
+        mock_goodreads_session = Mock()
+        mock_goodreads_session.get.return_value = mock_response
+        mock_goodreads_session.headers = Mock()
+
+        import requests
+
+        monkeypatch.setattr(requests, "Session", lambda: mock_goodreads_session)
 
         genres, page_count, link, image_url = scraper._scrape_goodreads_metadata("1234567890")
 

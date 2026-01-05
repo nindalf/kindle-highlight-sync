@@ -29,11 +29,32 @@ Highlights{% endblock %} {% block extra_css %}
         font-size: 14px;
         cursor: pointer;
         margin-top: 15px;
-        margin-bottom: 20px;
-        display: block;
+        margin-right: 10px;
+        display: inline-block;
     }
     .edit-book-btn:hover {
         background: #0056b3;
+    }
+    .sync-book-btn {
+        background: #28a745;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 4px;
+        font-size: 14px;
+        cursor: pointer;
+        margin-top: 15px;
+        display: inline-block;
+    }
+    .sync-book-btn:hover {
+        background: #218838;
+    }
+    .sync-book-btn:disabled {
+        background: #6c757d;
+        cursor: not-allowed;
+    }
+    .button-group {
+        margin-bottom: 20px;
     }
     .star-rating-section {
         margin-top: 20px;
@@ -413,9 +434,14 @@ Highlights{% endblock %} {% block extra_css %}
     {% endif %}
 </div>
 
-<button class="edit-book-btn" onclick="openEditModal()">
-    Edit Book Details
-</button>
+<div class="button-group">
+    <button class="edit-book-btn" onclick="openEditModal()">
+        Edit Book Details
+    </button>
+    <button class="sync-book-btn" id="syncBookBtn" onclick="syncThisBook()">
+        Sync This Book
+    </button>
+</div>
 {% endif %}
 
 <div class="star-rating-section">
@@ -712,6 +738,44 @@ Highlights{% endblock %} {% block extra_css %}
             }
         } catch (error) {
             alert("Failed to toggle highlight visibility: " + error.message);
+        }
+    }
+
+    async function syncThisBook() {
+        const syncBtn = document.getElementById("syncBookBtn");
+        const originalText = syncBtn.textContent;
+
+        try {
+            syncBtn.disabled = true;
+            syncBtn.textContent = "Syncing...";
+
+            const response = await fetch(`/api/books/{{ book.asin }}/sync`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+            });
+            const data = await response.json();
+
+            if (data.success) {
+                syncBtn.textContent = "✓ Synced!";
+                setTimeout(() => {
+                    location.reload();
+                }, 1000);
+            } else {
+                syncBtn.textContent = "✗ Failed";
+                alert(`Sync failed: ${data.error || data.message}`);
+                setTimeout(() => {
+                    syncBtn.textContent = originalText;
+                    syncBtn.disabled = false;
+                }, 2000);
+            }
+        } catch (error) {
+            console.error("Failed to sync book:", error);
+            syncBtn.textContent = "✗ Error";
+            alert("Failed to sync book. Please try again.");
+            setTimeout(() => {
+                syncBtn.textContent = originalText;
+                syncBtn.disabled = false;
+            }, 2000);
         }
     }
 

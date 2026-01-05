@@ -15,23 +15,24 @@ endblock %} {% block content %}
     <div class="settings-section">
         <h3>🔄 Sync Highlights</h3>
         <p class="section-description">
-            Sync your Kindle highlights from Amazon. This will download new
-            highlights and update existing ones.
+            Sync your Kindle highlights from Amazon. "Sync New Books"
+            efficiently finds books not yet in your database. "Full Sync"
+            re-syncs all books and their highlights.
         </p>
         <div class="action-buttons">
             <button
-                id="sync-btn"
+                id="sync-new-books-btn"
                 class="btn btn-primary"
-                onclick="syncHighlights()"
+                onclick="syncNewBooks()"
             >
-                Sync Now
+                Sync New Books
             </button>
             <button
                 id="full-sync-btn"
                 class="btn btn-secondary"
-                onclick="syncHighlights(true)"
+                onclick="syncHighlights()"
             >
-                Full Sync (Slower)
+                Full Sync
             </button>
         </div>
         <div id="sync-result"></div>
@@ -528,17 +529,82 @@ endblock %} {% block content %}
         }
     }
 
-    async function syncHighlights(full = false) {
-        const syncBtn = document.getElementById("sync-btn");
+    async function syncNewBooks() {
+        const syncNewBooksBtn = document.getElementById("sync-new-books-btn");
         const fullSyncBtn = document.getElementById("full-sync-btn");
         const resultDiv = document.getElementById("sync-result");
 
         // Disable buttons
-        syncBtn.disabled = true;
+        syncNewBooksBtn.disabled = true;
         fullSyncBtn.disabled = true;
 
         resultDiv.innerHTML =
-            '<div class="alert alert-info">Syncing... This may take a minute.</div>';
+            '<div class="alert alert-info">Scanning for new books... This may take a minute.</div>';
+
+        try {
+            const response = await fetch("/api/sync/new-books", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                let detailsHtml = "";
+                if (data.data.books && data.data.books.length > 0) {
+                    detailsHtml = '<div class="sync-details">';
+                    data.data.books.forEach((book) => {
+                        detailsHtml += `
+                            <div class="sync-book">
+                                <div class="sync-book-title">${book.title}</div>
+                                <div class="sync-book-stats">
+                                    ${book.new_highlights} new highlights
+                                </div>
+                            </div>
+                        `;
+                    });
+                    detailsHtml += "</div>";
+                }
+
+                resultDiv.innerHTML = `
+                    <div class="alert alert-success">
+                        ${data.message}
+                        <br><strong>${data.data.books_synced}</strong> new books found
+                        · <strong>${data.data.new_highlights}</strong> highlights
+                    </div>
+                    ${detailsHtml}
+                `;
+
+                // Reload status
+                loadAccountStatusPanel();
+            } else {
+                resultDiv.innerHTML = `
+                    <div class="alert alert-error">${data.message || data.error}</div>
+                `;
+            }
+        } catch (error) {
+            resultDiv.innerHTML = `
+                <div class="alert alert-error">Sync failed: ${error.message}</div>
+            `;
+        } finally {
+            syncNewBooksBtn.disabled = false;
+            fullSyncBtn.disabled = false;
+        }
+    }
+
+    async function syncHighlights() {
+        const syncNewBooksBtn = document.getElementById("sync-new-books-btn");
+        const fullSyncBtn = document.getElementById("full-sync-btn");
+        const resultDiv = document.getElementById("sync-result");
+
+        // Disable buttons
+        syncNewBooksBtn.disabled = true;
+        fullSyncBtn.disabled = true;
+
+        resultDiv.innerHTML =
+            '<div class="alert alert-info">Full sync in progress... This may take several minutes.</div>';
 
         try {
             const response = await fetch("/api/sync", {
@@ -546,7 +612,6 @@ endblock %} {% block content %}
                 headers: {
                     "Content-Type": "application/json",
                 },
-                body: JSON.stringify({ full: full }),
             });
 
             const data = await response.json();
@@ -590,7 +655,7 @@ endblock %} {% block content %}
                 <div class="alert alert-error">Sync failed: ${error.message}</div>
             `;
         } finally {
-            syncBtn.disabled = false;
+            syncNewBooksBtn.disabled = false;
             fullSyncBtn.disabled = false;
         }
     }

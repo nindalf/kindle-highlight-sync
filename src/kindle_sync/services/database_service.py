@@ -190,6 +190,68 @@ class DatabaseManager:
         except sqlite3.Error as e:
             raise DatabaseError(f"Failed to insert book: {e}") from e
 
+    def upsert_book(self, book: Book) -> None:
+        """Insert a book or update it if it already exists (upsert).
+
+        This method updates all fields from the scraper (title, author, image_url, etc.)
+        but preserves user-edited fields (status, notes, star_rating, review, dates, prices).
+        """
+        self.connect()
+        assert self.conn is not None
+        try:
+            self.conn.execute(
+                """
+                INSERT INTO books (
+                    asin, title, author, url, image_url,
+                    last_annotated_date, updated_at,
+                    purchase_date, status, format, notes,
+                    start_date, end_date, reading_time, genres,
+                    shop_link, isbn, page_count, classification, goodreads_link,
+                    price_gbp, price_inr, review, star_rating
+                )
+                VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(asin) DO UPDATE SET
+                    title = excluded.title,
+                    author = excluded.author,
+                    url = excluded.url,
+                    image_url = excluded.image_url,
+                    last_annotated_date = excluded.last_annotated_date,
+                    updated_at = CURRENT_TIMESTAMP,
+                    genres = excluded.genres,
+                    isbn = excluded.isbn,
+                    page_count = excluded.page_count,
+                    goodreads_link = excluded.goodreads_link
+                """,
+                (
+                    book.asin,
+                    book.title,
+                    book.author,
+                    book.url,
+                    book.image_url,
+                    book.last_annotated_date.isoformat() if book.last_annotated_date else None,
+                    book.purchase_date.isoformat() if book.purchase_date else None,
+                    book.status,
+                    book.format,
+                    book.notes,
+                    book.start_date.isoformat() if book.start_date else None,
+                    book.end_date.isoformat() if book.end_date else None,
+                    book.reading_time,
+                    book.genres,
+                    book.shop_link,
+                    book.isbn,
+                    book.page_count,
+                    book.classification,
+                    book.goodreads_link,
+                    book.price_gbp,
+                    book.price_inr,
+                    book.review,
+                    book.star_rating,
+                ),
+            )
+            self.conn.commit()
+        except sqlite3.Error as e:
+            raise DatabaseError(f"Failed to upsert book: {e}") from e
+
     def get_book(self, asin: str) -> Book | None:
         self.connect()
         assert self.conn is not None

@@ -172,6 +172,144 @@ class KindleScraper:
 
         return highlights, next_content_limit_state, next_token
 
+    @retry(max_attempts=Config.MAX_RETRIES, delay=Config.RETRY_DELAY, backoff=Config.RETRY_BACKOFF)
+    def scrape_single_book(self, asin: str) -> Book | None:
+        """
+        Scrape a single book by ASIN from Amazon's library API.
+
+        Args:
+            asin: Amazon Standard Identification Number
+
+        Returns:
+            Book object if found, None otherwise
+
+        Raises:
+            ScraperError: If scraping fails
+        """
+        base_url = self.region_config.kindle_reader_url
+        api_url = f"{base_url}/kindle-library/search"
+
+        # Search for the specific ASIN
+        # We'll fetch in small batches and check each one
+        pagination_token = 0
+        query_size = 50
+
+        while True:
+            params = {
+                "libraryType": "BOOKS",
+                "paginationToken": str(pagination_token),
+                "sortType": "recency",
+                "querySize": str(query_size),
+            }
+
+            try:
+                response = self.session.get(api_url, params=params, timeout=Config.REQUEST_TIMEOUT)
+                response.raise_for_status()
+                data = response.json()
+            except requests.RequestException as e:
+                exc = ScraperError(f"Failed to search for book with ASIN {asin}")
+                exc.add_note(f"URL: {api_url}")
+                raise exc from e
+
+            items = data.get("itemsList", [])
+            if not items:
+                return None
+
+            # Check if our ASIN is in this batch
+            for item in items:
+                if item.get("asin") == asin:
+                    try:
+                        return self._parse_book_from_api(item)
+                    except Exception as e:
+                        exc = ScraperError(f"Failed to parse book with ASIN {asin}")
+                        raise exc from e
+
+            # Check if there are more pages
+            if not data.get("paginationToken"):
+                break
+
+            pagination_token = int(data["paginationToken"])
+
+        return None
+
+    @retry(max_attempts=Config.MAX_RETRIES, delay=Config.RETRY_DELAY, backoff=Config.RETRY_BACKOFF)
+    def scrape_new_books(self, existing_asins: set[str]) -> list[Book]:
+        """
+        Scrape new books from Amazon that aren't in the existing set.
+
+        This method scans through the library and stops when it encounters
+        books that are already in the database, making it efficient for
+        incremental syncs.
+
+        Args:
+            existing_asins: Set of ASINs already in the database
+
+        Returns:
+            List of new books not in existing_asins
+
+        Raises:
+            ScraperError: If scraping fails
+        """
+        base_url = self.region_config.kindle_reader_url
+        api_url = f"{base_url}/kindle-library/search"
+
+        new_books = []
+        pagination_token = 0
+        query_size = 50
+        consecutive_existing = 0
+        # Stop after finding 10 consecutive books that already exist
+        # This assumes books are sorted by recency
+        max_consecutive_existing = 10
+
+        while True:
+            params = {
+                "libraryType": "BOOKS",
+                "paginationToken": str(pagination_token),
+                "sortType": "recency",
+                "querySize": str(query_size),
+            }
+
+            try:
+                response = self.session.get(api_url, params=params, timeout=Config.REQUEST_TIMEOUT)
+                response.raise_for_status()
+                data = response.json()
+            except requests.RequestException as e:
+                exc = ScraperError("Failed to fetch books for new book scan")
+                exc.add_note(f"URL: {api_url}")
+                exc.add_note(f"Pagination token: {pagination_token}")
+                raise exc from e
+
+            items = data.get("itemsList", [])
+            if not items:
+                break
+
+            for item in items:
+                try:
+                    asin = item.get("asin")
+                    if not asin:
+                        continue
+
+                    if asin in existing_asins:
+                        consecutive_existing += 1
+                        if consecutive_existing >= max_consecutive_existing:
+                            # We've hit enough existing books, likely no more new ones
+                            return new_books
+                    else:
+                        consecutive_existing = 0
+                        book = self._parse_book_from_api(item)
+                        if book:
+                            new_books.append(book)
+                except Exception as e:
+                    print(f"Warning: Failed to parse book: {e}")
+
+            # Check if there are more pages
+            if not data.get("paginationToken"):
+                break
+
+            pagination_token = int(data["paginationToken"])
+
+        return new_books
+
     def _parse_book_from_api(self, item: dict[str, Any]) -> Book | None:
         """Parse a book from API JSON response."""
         # Extract ASIN from the item
@@ -213,6 +351,15 @@ class KindleScraper:
         # Extract ISBN from product page
         isbn = self._scrape_isbn(asin)
 
+        # Fetch Goodreads metadata if ISBN is available
+        genres = None
+        page_count = None
+        goodreads_link = None
+        if isbn:
+            genres, page_count, goodreads_link, _ = self._scrape_goodreads_metadata(
+                isbn, include_image=False
+            )
+
         return Book(
             asin=asin,
             title=title,
@@ -223,6 +370,9 @@ class KindleScraper:
             isbn=isbn,
             created_at=datetime.now(),
             updated_at=datetime.now(),
+            genres=genres,
+            page_count=page_count,
+            goodreads_link=goodreads_link,
         )
 
     def _parse_book_element(self, element: Any) -> Book:
@@ -395,7 +545,13 @@ class KindleScraper:
             clean_isbn = isbn.replace("-", "").replace(" ", "")
             url = f"https://www.goodreads.com/search?q={clean_isbn}"
 
-            response = self.session.get(url, timeout=Config.REQUEST_TIMEOUT, allow_redirects=True)
+            # Create a fresh session for Goodreads without Amazon cookies
+            goodreads_session = requests.Session()
+            goodreads_session.headers.update({"User-Agent": Config.USER_AGENT})
+
+            response = goodreads_session.get(
+                url, timeout=Config.REQUEST_TIMEOUT, allow_redirects=True
+            )
             response.raise_for_status()
 
             # Get the final URL after redirect (the actual book page)
