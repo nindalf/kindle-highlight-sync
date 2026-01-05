@@ -305,6 +305,7 @@ class DatabaseManager:
         # Build update query dynamically based on provided fields
         allowed_fields = {
             "title",
+            "author",
             "purchase_date",
             "status",
             "format",

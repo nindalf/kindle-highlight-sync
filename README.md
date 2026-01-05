@@ -16,7 +16,7 @@ A local-first tool for managing your Kindle reading data. It syncs your highligh
 - Download book cover images
 - Search across all highlights and notes
 - Export to multiple formats with customizable templates
-- Three interfaces: CLI, web browser, macOS menu bar
+- Two interfaces: CLI and web browser
 
 ## Installation
 
@@ -106,25 +106,6 @@ The web interface provides:
 - Trigger sync and export operations
 
 Access settings at `http://localhost:5000/settings`
-
-### macOS Menu Bar App
-
-Run as a native macOS app with a menu bar icon:
-
-```bash
-uv run kindle-sync-app
-```
-
-Features:
-- Background Flask server for web interface
-- Quick access to sync, export, and settings
-- Desktop notifications for operations
-- Open web interface from menu
-
-To build a standalone .app bundle:
-```bash
-uv run --extra app python setup.py py2app
-```
 
 ## Features
 
@@ -223,7 +204,9 @@ Inspired by [obsidian-kindle-plugin](https://github.com/hadynz/obsidian-kindle-p
 ## Future Features
 
 - [x] Improve ways to rate books.
-- [ ] Add books without highlights (Immune, Asterix etc)
+- [x] Add books without highlights (Immune, Asterix etc)
+- [ ] Add lightweight sync to search for new books.
+- [ ] Sync and export a single book.
 - [ ] Add ratings and reviews to books in my collection.
 - [ ] Add a pre-push hook that runs `ruff` and `ty`
 - [ ] Explore htmx in the frontend.

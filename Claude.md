@@ -25,13 +25,6 @@ uv run pytest tests/test_database.py::TestDatabaseManager::test_insert_book
 uv run pytest --cov=kindle_sync --cov-report=term-missing
 ```
 
-### Building macOS App
-
-```bash
-# Build .app bundle with py2app
-uv run --extra app python setup.py py2app
-```
-
 ### Running the Application
 
 ```bash
@@ -40,21 +33,18 @@ uv run kindle-sync login
 uv run kindle-sync sync
 uv run kindle-sync export ./output
 uv run kindle-sync web
-
-# macOS menu bar app
-uv run kindle-sync-app
 ```
 
 ## Architecture Overview
 
-This is a Kindle highlights sync tool with three user interfaces (CLI, web, macOS menu bar) sharing a common service layer.
+This is a Kindle highlights sync tool with two user interfaces (CLI and web) sharing a common service layer.
 
 ### Layered Architecture
 
 ```
 ┌─────────────────────────────────────────────────────┐
 │  User Interfaces                                    │
-│  cli.py | web.py | menu_bar.py                      │
+│  cli.py | web.py                                    │
 └──────────────────┬──────────────────────────────────┘
                    │
 ┌──────────────────┴──────────────────────────────────┐
@@ -129,14 +119,6 @@ All scraping methods wrapped with `@retry` decorator for network resilience.
 - `/api/books/<asin>/metadata` - Update book metadata
 - `/api/highlights/<id>/toggle-visibility` - Hide/show highlights
 
-### macOS Menu Bar App
-
-`menu_bar.py` uses `rumps` library to create a native menu bar application. It:
-- Runs Flask server in a background thread
-- Performs sync/export operations asynchronously via threading
-- Shows notifications using `rumps.notification()`
-- Changes menu dynamically based on auth status
-
 ## Important Patterns
 
 ### Highlight ID Generation
@@ -176,7 +158,6 @@ uv run kindle-sync login --region uk
 
 - `cli.py` (370 lines) - Click-based CLI with 8 commands
 - `web.py` (450 lines) - Flask app with web UI and API routes
-- `menu_bar.py` (240 lines) - macOS menu bar app with rumps
 - `services/database_service.py` (619 lines) - All database operations
 - `services/scraper_service.py` (387 lines) - Amazon scraping logic
 - `services/auth_service.py` (260 lines) - Authentication and session management

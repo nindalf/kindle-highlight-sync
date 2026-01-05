@@ -40,17 +40,9 @@ dev = [
     "pytest>=7.4.0",
     "pytest-cov>=4.1.0",
 ]
-macos = [
-    "rumps>=0.4.0",
-]
-app = [
-    "py2app>=0.28.0",
-    "rumps>=0.4.0",
-]
 
 [project.scripts]
 kindle-sync = "kindle_sync.cli:main"
-kindle-sync-app = "kindle_sync.menu_bar:main"
 
 [tool.ruff]
 line-length = 100
