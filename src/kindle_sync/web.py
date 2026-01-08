@@ -359,6 +359,35 @@ def create_app(db_path: str | None = None) -> Flask:
             }
         )
 
+    @app.route("/api/books/<asin>/export", methods=["POST"])
+    def api_export_single_book(asin: str):
+        """Export a single book to the default export directory."""
+        from kindle_sync.config import Config
+
+        db = get_db()
+
+        # Get the export directory (use configured or default)
+        export_dir = db.get_export_directory()
+        if not export_dir:
+            export_dir = Config.DEFAULT_EXPORT_DIR
+
+        result = ExportService.export_book(
+            app.config["DB_PATH"], asin, export_dir, ExportFormat.MARKDOWN, "astro"
+        )
+
+        if result.success and result.files_created:
+            return jsonify(
+                {
+                    "success": True,
+                    "message": result.message,
+                    "data": {"file_path": result.files_created[0]},
+                }
+            )
+        else:
+            return jsonify(
+                {"success": False, "message": result.message, "error": result.error}
+            ), 500
+
     @app.route("/api/export", methods=["POST"])
     def api_export():
         """Export highlights."""

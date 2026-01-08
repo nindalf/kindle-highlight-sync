@@ -53,6 +53,24 @@ Highlights{% endblock %} {% block extra_css %}
         background: #6c757d;
         cursor: not-allowed;
     }
+    .export-book-btn {
+        background: #17a2b8;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 4px;
+        font-size: 14px;
+        cursor: pointer;
+        margin-top: 15px;
+        display: inline-block;
+    }
+    .export-book-btn:hover {
+        background: #138496;
+    }
+    .export-book-btn:disabled {
+        background: #6c757d;
+        cursor: not-allowed;
+    }
     .button-group {
         margin-bottom: 20px;
     }
@@ -441,6 +459,13 @@ Highlights{% endblock %} {% block extra_css %}
     <button class="sync-book-btn" id="syncBookBtn" onclick="syncThisBook()">
         Sync This Book
     </button>
+    <button
+        class="export-book-btn"
+        id="exportBookBtn"
+        onclick="exportThisBook()"
+    >
+        Export This Book
+    </button>
 </div>
 {% endif %}
 
@@ -775,6 +800,46 @@ Highlights{% endblock %} {% block extra_css %}
             setTimeout(() => {
                 syncBtn.textContent = originalText;
                 syncBtn.disabled = false;
+            }, 2000);
+        }
+    }
+
+    async function exportThisBook() {
+        const exportBtn = document.getElementById("exportBookBtn");
+        const originalText = exportBtn.textContent;
+
+        try {
+            exportBtn.disabled = true;
+            exportBtn.textContent = "Exporting...";
+
+            const response = await fetch(`/api/books/{{ book.asin }}/export`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+            });
+            const data = await response.json();
+
+            if (data.success) {
+                exportBtn.textContent = "✓ Exported!";
+                alert(`Book exported successfully to:\n${data.data.file_path}`);
+                setTimeout(() => {
+                    exportBtn.textContent = originalText;
+                    exportBtn.disabled = false;
+                }, 2000);
+            } else {
+                exportBtn.textContent = "✗ Failed";
+                alert(`Export failed: ${data.error || data.message}`);
+                setTimeout(() => {
+                    exportBtn.textContent = originalText;
+                    exportBtn.disabled = false;
+                }, 2000);
+            }
+        } catch (error) {
+            console.error("Failed to export book:", error);
+            exportBtn.textContent = "✗ Error";
+            alert("Failed to export book. Please try again.");
+            setTimeout(() => {
+                exportBtn.textContent = originalText;
+                exportBtn.disabled = false;
             }, 2000);
         }
     }
