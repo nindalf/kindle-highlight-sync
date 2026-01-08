@@ -409,7 +409,10 @@ Highlights{% endblock %} {% block extra_css %}
     </div>
 </div>
 
-{% if book.status or book.format or book.isbn or book.genres or book.notes %}
+{% if book.status or book.format or book.isbn or book.genres or book.notes or
+book.purchase_date or book.start_date or book.end_date or book.reading_time or
+book.classification or book.price_gbp or book.price_inr or book.shop_link or
+book.goodreads_link %}
 <div class="book-details">
     {% if book.status %}
     <div><strong>Status:</strong> {{ book.status }}</div>
@@ -451,6 +454,7 @@ Highlights{% endblock %} {% block extra_css %}
     <div style="margin-top: 10px"><strong>Notes:</strong> {{ book.notes }}</div>
     {% endif %}
 </div>
+{% endif %}
 
 <div class="button-group">
     <button class="edit-book-btn" onclick="openEditModal()">
@@ -467,7 +471,6 @@ Highlights{% endblock %} {% block extra_css %}
         Export This Book
     </button>
 </div>
-{% endif %}
 
 <div class="star-rating-section">
     <div class="star-rating-header">

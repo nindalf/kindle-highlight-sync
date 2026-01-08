@@ -4,7 +4,8 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
 
-from kindle_sync.models import AmazonRegion, Book
+from kindle_sync.models import AmazonRegion, Book, ImageSize
+from kindle_sync.services import ImageService
 from kindle_sync.services.auth_service import AuthManager
 from kindle_sync.services.database_service import DatabaseManager
 from kindle_sync.services.scraper_service import KindleScraper, ScraperError
@@ -185,19 +186,20 @@ class SyncService:
             if progress_callback:
                 progress_callback(f"Fetching book {asin} from Amazon...")
 
-            # Fetch the book from Amazon
-            book = scraper.scrape_single_book(asin)
-            if not book:
-                db.close()
-                return SyncResult(
-                    success=False,
-                    message="Book not found",
-                    error=f"Book with ASIN {asin} not found in your Kindle library",
-                )
+            book = db.get_book(asin)
+            if book is None:
+                # Fetch the book from Amazon
+                book = scraper.scrape_single_book(asin)
+                if not book:
+                    db.close()
+                    return SyncResult(
+                        success=False,
+                        message="Book not found",
+                        error=f"Book with ASIN {asin} not found in your Kindle library",
+                    )
+            else:
+                book = scraper.enrich_book_metadata(book)
 
-            print(book.title)
-            print(book.goodreads_link)
-            print(book.genres)
             # Insert/update book in database (upsert to update metadata if book exists)
             db.upsert_book(book)
 
@@ -320,6 +322,16 @@ class SyncService:
 
                 total_new += len(highlights)
 
+                if book.image_url:
+                    image_result = ImageService.sync_book_image(
+                        db_path, book.asin, size=ImageSize.ORIGINAL
+                    )
+                    if not image_result.success:
+                        # Log warning but don't fail the entire operation
+                        print(
+                            f"Warning: Failed to download image for book '{book.title}': {image_result.error}"
+                        )
+
                 book_details.append(
                     BookSyncDetail(
                         asin=book.asin,
@@ -387,10 +399,6 @@ class SyncService:
 
             # Download book cover image if available
             if book.image_url:
-                from kindle_sync.models import ImageSize
-                from kindle_sync.services.image_service import ImageService
-
-                # Use ImageService to download the image
                 image_result = ImageService.sync_book_image(
                     db_path, book.asin, size=ImageSize.ORIGINAL
                 )

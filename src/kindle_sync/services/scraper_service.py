@@ -632,6 +632,52 @@ class KindleScraper:
 
         return None
 
+    def enrich_book_metadata(self, book: Book) -> Book:
+        """
+        Enrich existing book metadata by filling in missing fields.
+
+        This method fills in missing metadata fields in the following order:
+        1. If shop_link is empty, construct it from ASIN
+        2. If ISBN is empty, scrape it from the shop_link
+        3. If ISBN exists but Goodreads metadata is missing, scrape from Goodreads
+
+        Args:
+            book: Book object with potentially incomplete metadata
+
+        Returns:
+            Book object with enriched metadata
+        """
+        # If shop_link is empty, set it using ASIN
+        if not book.shop_link:
+            book.shop_link = f"https://{self.region_config.hostname}/dp/{book.asin}"
+
+        # If ISBN is empty, scrape it from the shop_link
+        if not book.isbn and book.shop_link:
+            try:
+                response = self.session.get(book.shop_link, timeout=Config.REQUEST_TIMEOUT)
+                response.raise_for_status()
+                soup = BeautifulSoup(response.text, "html.parser")
+                book.isbn = self._extract_isbn_from_soup(soup)
+            except Exception:
+                pass  # If ISBN extraction fails, continue without it
+
+        # If ISBN exists but Goodreads metadata is missing, scrape Goodreads
+        if book.isbn and not book.goodreads_link:
+            try:
+                genres, page_count, goodreads_link, _ = self._scrape_goodreads_metadata(
+                    book.isbn, include_image=False
+                )
+                if goodreads_link:
+                    book.goodreads_link = goodreads_link
+                if genres and not book.genres:
+                    book.genres = genres
+                if page_count and not book.page_count:
+                    book.page_count = page_count
+            except Exception:
+                pass  # If Goodreads scraping fails, continue without it
+
+        return book
+
     @retry(max_attempts=Config.MAX_RETRIES, delay=Config.RETRY_DELAY, backoff=Config.RETRY_BACKOFF)
     def scrape_physical_book(self, asin: str, isbn: str | None = None) -> Book:
         """

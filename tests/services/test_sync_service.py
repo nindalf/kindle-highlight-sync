@@ -205,6 +205,7 @@ class TestSyncServiceSingleBook:
 
             mock_scraper = Mock()
             mock_scraper.scrape_single_book.return_value = sample_books[0]
+            mock_scraper.enrich_book_metadata.return_value = sample_books[0]
             mock_scraper.scrape_highlights.return_value = sample_highlights_book1
             MockScraper.return_value = mock_scraper
 
@@ -275,6 +276,7 @@ class TestSyncServiceSingleBook:
 
             mock_scraper = Mock()
             mock_scraper.scrape_single_book.return_value = sample_books[0]
+            mock_scraper.enrich_book_metadata.return_value = sample_books[0]
             mock_scraper.scrape_highlights.return_value = sample_highlights_book1
             MockScraper.return_value = mock_scraper
 
@@ -305,6 +307,7 @@ class TestSyncServiceHighlightUpdates:
 
             mock_scraper = Mock()
             mock_scraper.scrape_single_book.return_value = sample_books[0]
+            mock_scraper.enrich_book_metadata.return_value = sample_books[0]
             # Return both highlights (one existing, one new)
             mock_scraper.scrape_highlights.return_value = sample_highlights_book1
             MockScraper.return_value = mock_scraper
@@ -333,6 +336,7 @@ class TestSyncServiceHighlightUpdates:
 
             mock_scraper = Mock()
             mock_scraper.scrape_single_book.return_value = sample_books[0]
+            mock_scraper.enrich_book_metadata.return_value = sample_books[0]
             # Return only first highlight (second was deleted)
             mock_scraper.scrape_highlights.return_value = [sample_highlights_book1[0]]
             MockScraper.return_value = mock_scraper
@@ -361,6 +365,7 @@ class TestSyncServiceHighlightUpdates:
 
             mock_scraper = Mock()
             mock_scraper.scrape_single_book.return_value = sample_books[0]
+            mock_scraper.enrich_book_metadata.return_value = sample_books[0]
             # Return same highlights (no new, no deleted)
             mock_scraper.scrape_highlights.return_value = sample_highlights_book1
             MockScraper.return_value = mock_scraper
@@ -388,6 +393,7 @@ class TestSyncServiceErrors:
 
             mock_scraper = Mock()
             mock_scraper.scrape_single_book.return_value = sample_books[0]
+            mock_scraper.enrich_book_metadata.return_value = sample_books[0]
             mock_scraper.scrape_highlights.side_effect = Exception("Network error")
             MockScraper.return_value = mock_scraper
 
@@ -433,6 +439,7 @@ class TestSyncServiceMetadata:
 
             mock_scraper = Mock()
             mock_scraper.scrape_single_book.return_value = sample_books[0]
+            mock_scraper.enrich_book_metadata.return_value = sample_books[0]
             mock_scraper.scrape_highlights.return_value = sample_highlights_book1
             MockScraper.return_value = mock_scraper
 
