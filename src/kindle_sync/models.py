@@ -12,6 +12,7 @@ class HighlightColor(StrEnum):
     BLUE = "blue"
     PINK = "pink"
     ORANGE = "orange"
+    AQUA = "aqua"
 
 
 class AmazonRegion(StrEnum):
